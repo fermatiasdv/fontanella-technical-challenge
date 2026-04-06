@@ -4,6 +4,8 @@
  * business rules in isolation without any HTTP or DB layer.
  */
 
+/// <reference types="jest" />
+
 jest.mock('../../modules/appointments/appointments.repository');
 jest.mock('../../shared/services/timezone/timezoneService');
 

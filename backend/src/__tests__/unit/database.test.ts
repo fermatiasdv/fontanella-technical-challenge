@@ -15,7 +15,7 @@ describe('dbError', () => {
       code: '23505',
       details: 'Key (id)=(1) already exists.',
       hint: 'Use a different id.',
-    } as PostgrestError;
+    } as unknown as PostgrestError;
 
     const err = dbError(pgError);
 
@@ -30,7 +30,7 @@ describe('dbError', () => {
       code: '23505',
       details: 'some details',
       hint: 'some hint',
-    } as PostgrestError;
+    } as unknown as PostgrestError;
 
     const err = dbError(pgError);
 
@@ -44,7 +44,7 @@ describe('dbError', () => {
       code: '42P01',
       details: null,
       hint: null,
-    } as PostgrestError;
+    } as unknown as PostgrestError;
 
     const err = dbError(pgError);
 
@@ -67,6 +67,7 @@ describe('getSupabaseClient', () => {
   it('creates a client with the config values on first call', () => {
     jest.doMock('@supabase/supabase-js', () => ({ createClient: mockCreateClient }));
     jest.doMock('../../shared/config', () => ({
+      __esModule: true,
       default: {
         supabase: { url: 'https://test.supabase.co', serviceRoleKey: 'service-role-key' },
       },
@@ -90,6 +91,7 @@ describe('getSupabaseClient', () => {
   it('returns the same singleton instance on repeated calls', () => {
     jest.doMock('@supabase/supabase-js', () => ({ createClient: mockCreateClient }));
     jest.doMock('../../shared/config', () => ({
+      __esModule: true,
       default: {
         supabase: { url: 'https://test.supabase.co', serviceRoleKey: 'key' },
       },

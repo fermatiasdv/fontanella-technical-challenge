@@ -4,6 +4,7 @@
  */
 
 jest.mock('../../shared/config', () => ({
+  __esModule: true,
   default: {
     timeapi: { baseUrl: 'https://test-timeapi.io/api' },
     app: { timezone: 'America/Argentina/Buenos_Aires' },

@@ -14,7 +14,7 @@ const mockGetClient = jest.mocked(getSupabaseClient);
 
 function setup(initial = { data: null as unknown, error: null as unknown }) {
   const { client, chain } = makeSupabaseMock(initial);
-  mockGetClient.mockReturnValue(client as ReturnType<typeof getSupabaseClient>);
+  mockGetClient.mockReturnValue(client as unknown as ReturnType<typeof getSupabaseClient>);
   return chain;
 }
 

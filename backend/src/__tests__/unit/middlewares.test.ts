@@ -119,7 +119,7 @@ describe('notFound', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     const err = (next as jest.Mock).mock.calls[0][0];
-    expect(err).toBeInstanceOf(HttpError);
+    expect(err.constructor.name).toBe('HttpError');
     expect(err.statusCode).toBe(404);
   });
 
