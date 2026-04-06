@@ -9,7 +9,7 @@ export async function list(_req: Request, res: Response, next: NextFunction): Pr
 
 export async function getOne(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({ data: await service.getClient(req.params['id']!) });
+    res.json({ data: await service.getClient(parseInt(req.params['id']!, 10)) });
   } catch (err) { next(err); }
 }
 
@@ -21,13 +21,13 @@ export async function create(req: Request, res: Response, next: NextFunction): P
 
 export async function update(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({ data: await service.updateClient(req.params['id']!, req.body) });
+    res.json({ data: await service.updateClient(parseInt(req.params['id']!, 10), req.body) });
   } catch (err) { next(err); }
 }
 
 export async function remove(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await service.deleteClient(req.params['id']!);
+    await service.deleteClient(parseInt(req.params['id']!, 10));
     res.status(204).send();
   } catch (err) { next(err); }
 }

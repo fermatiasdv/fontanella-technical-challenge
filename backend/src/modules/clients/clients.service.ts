@@ -6,7 +6,7 @@ export async function listClients(): Promise<Client[]> {
   return repository.findAll();
 }
 
-export async function getClient(id: string): Promise<Client> {
+export async function getClient(id: number): Promise<Client> {
   const client = await repository.findById(id);
   if (!client) {
     throw new HttpError(`Client not found: ${id}`, 404);
@@ -14,19 +14,19 @@ export async function getClient(id: string): Promise<Client> {
   return client;
 }
 
-export async function createClient(dto: Omit<Client, 'id' | 'created_at'>): Promise<Client> {
+export async function createClient(dto: Omit<Client, 'id_client'>): Promise<Client> {
   return repository.create(dto);
 }
 
 export async function updateClient(
-  id: string,
-  dto: Partial<Omit<Client, 'id' | 'created_at'>>,
+  id: number,
+  dto: Partial<Omit<Client, 'id_client'>>,
 ): Promise<Client | null> {
   await getClient(id);
   return repository.update(id, dto);
 }
 
-export async function deleteClient(id: string): Promise<void> {
+export async function deleteClient(id: number): Promise<void> {
   await getClient(id);
   await repository.remove(id);
 }

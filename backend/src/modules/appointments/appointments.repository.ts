@@ -2,34 +2,28 @@ import { getSupabaseClient } from '../../shared/database/supabaseClient';
 import { dbError } from '../../shared/database/dbError';
 import type { Appointment } from '../../shared/types';
 
-const TABLE = 'appointments';
+const TABLE = 't_appointments';
+const PK = 'id_appointment';
 
-type ConflictInfo = Pick<Appointment, 'id' | 'starts_at' | 'ends_at'>;
-type AppointmentPayload = Omit<Appointment, 'id' | 'created_at'>;
-
-/**
- * Repository layer — all Supabase queries live here.
- * No business logic. No timezone conversions. Pure data access.
- *
- * Dates stored/returned are always UTC ISO strings (TIMESTAMPTZ).
- */
+type ConflictInfo = Pick<Appointment, 'id_appointment' | 'start_datetime' | 'end_datetime'>;
+type AppointmentPayload = Omit<Appointment, 'id_appointment'>;
 
 export async function findAll({ limit = 50, offset = 0 } = {}): Promise<Appointment[]> {
   const { data, error } = await getSupabaseClient()
     .from(TABLE)
     .select('*')
-    .order('starts_at', { ascending: true })
+    .order('start_datetime', { ascending: true })
     .range(offset, offset + limit - 1);
 
   if (error) throw dbError(error);
   return data as Appointment[];
 }
 
-export async function findById(id: string): Promise<Appointment | null> {
+export async function findById(id: number): Promise<Appointment | null> {
   const { data, error } = await getSupabaseClient()
     .from(TABLE)
     .select('*')
-    .eq('id', id)
+    .eq(PK, id)
     .single();
 
   if (error && error.code === 'PGRST116') return null;
@@ -41,24 +35,23 @@ export async function findById(id: string): Promise<Appointment | null> {
  * Find appointments that overlap with the given time range.
  * Used by the service layer to detect scheduling conflicts.
  *
- * @param startsAt  - UTC ISO string
- * @param endsAt    - UTC ISO string
- * @param excludeId - Appointment id to exclude (for updates)
+ * @param startDatetime - UTC ISO string
+ * @param endDatetime   - UTC ISO string
+ * @param excludeId     - Appointment id to exclude (for updates)
  */
 export async function findOverlapping(
-  startsAt: string,
-  endsAt: string,
-  excludeId: string | null = null,
+  startDatetime: string,
+  endDatetime: string,
+  excludeId: number | null = null,
 ): Promise<ConflictInfo[]> {
   let query = getSupabaseClient()
     .from(TABLE)
-    .select('id, starts_at, ends_at')
-    .lt('starts_at', endsAt)
-    .gt('ends_at', startsAt)
-    .neq('status', 'cancelled');
+    .select('id_appointment, start_datetime, end_datetime')
+    .lt('start_datetime', endDatetime)
+    .gt('end_datetime', startDatetime);
 
-  if (excludeId) {
-    query = query.neq('id', excludeId);
+  if (excludeId !== null) {
+    query = query.neq(PK, excludeId);
   }
 
   const { data, error } = await query;
@@ -78,13 +71,13 @@ export async function create(payload: AppointmentPayload): Promise<Appointment> 
 }
 
 export async function update(
-  id: string,
+  id: number,
   payload: Partial<AppointmentPayload>,
 ): Promise<Appointment | null> {
   const { data, error } = await getSupabaseClient()
     .from(TABLE)
     .update(payload)
-    .eq('id', id)
+    .eq(PK, id)
     .select()
     .single();
 
@@ -93,7 +86,7 @@ export async function update(
   return data as Appointment;
 }
 
-export async function remove(id: string): Promise<void> {
-  const { error } = await getSupabaseClient().from(TABLE).delete().eq('id', id);
+export async function remove(id: number): Promise<void> {
+  const { error } = await getSupabaseClient().from(TABLE).delete().eq(PK, id);
   if (error) throw dbError(error);
 }

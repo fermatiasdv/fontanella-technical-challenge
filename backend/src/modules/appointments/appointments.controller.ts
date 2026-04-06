@@ -1,15 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as service from './appointments.service';
 
-/**
- * Controller layer — handles HTTP request/response only.
- *
- * Rules:
- *  - No business logic here.
- *  - Extract params, body, query → call service → send response.
- *  - All errors forwarded to the global error handler via next(err).
- */
-
 export async function list(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { limit, offset } = req.query;
@@ -25,7 +16,7 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
 
 export async function getOne(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({ data: await service.getAppointment(req.params['id']!) });
+    res.json({ data: await service.getAppointment(parseInt(req.params['id']!, 10)) });
   } catch (err) {
     next(err);
   }
@@ -41,15 +32,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
 
 export async function update(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({ data: await service.updateAppointment(req.params['id']!, req.body) });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function cancel(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    res.json({ data: await service.cancelAppointment(req.params['id']!) });
+    res.json({ data: await service.updateAppointment(parseInt(req.params['id']!, 10), req.body) });
   } catch (err) {
     next(err);
   }
@@ -57,7 +40,7 @@ export async function cancel(req: Request, res: Response, next: NextFunction): P
 
 export async function remove(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await service.deleteAppointment(req.params['id']!);
+    await service.deleteAppointment(parseInt(req.params['id']!, 10));
     res.status(204).send();
   } catch (err) {
     next(err);

@@ -1,6 +1,7 @@
 /**
  * Shared domain types and error class.
  * All DB row interfaces and DTO shapes live here.
+ * Column names match the actual Supabase schema exactly.
  */
 
 // ─── Error ────────────────────────────────────────────────────────────────────
@@ -10,7 +11,7 @@ export class HttpError extends Error {
   status?: number;
   details?: string;
   hint?: string;
-  conflicts?: Array<{ id: string; starts_at: string; ends_at: string }>;
+  conflicts?: Array<{ id_appointment: number; start_datetime: string; end_datetime: string }>;
 
   constructor(message: string, statusCode: number) {
     super(message);
@@ -22,94 +23,101 @@ export class HttpError extends Error {
 // ─── DB Row types ─────────────────────────────────────────────────────────────
 
 export interface Appointment {
-  id: string;
-  client_id: string;
-  lawyer_id: string;
-  starts_at: string; // UTC ISO (TIMESTAMPTZ)
-  ends_at: string;   // UTC ISO (TIMESTAMPTZ)
-  status: 'scheduled' | 'cancelled' | 'completed';
-  notes: string | null;
-  created_at?: string;
+  id_appointment: number;
+  subject: string;
+  description: string | null;
+  start_datetime: string; // UTC ISO (TIMESTAMPTZ)
+  end_datetime: string;   // UTC ISO (TIMESTAMPTZ)
+  id_lawyer: number;
+  id_client: number;
+  id_selected_contact: number;
 }
 
 export interface Lawyer {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string | null;
-  created_at?: string;
+  id_lawyer: number;
+  national_id: string;
+  full_name: string;
+  location: string;
+  timezone: string;
 }
 
 export interface Client {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string | null;
-  created_at?: string;
+  id_client: number;
+  company_id: string;
+  trade_name: string;
+  location: string;
+  timezone: string;
 }
 
-export interface ContactMessage {
-  id: string;
-  name: string;
-  email: string;
-  message: string;
-  status: 'unread' | 'read';
-  created_at: string;
+export interface Contact {
+  id_contact: number;
+  id_lawyer: number | null;
+  id_client: number | null;
+  method_type: 'InPerson' | 'VideoCall' | 'PhoneCall';
+  value: string;
+  is_default: boolean;
 }
 
 export interface WorkingSchedule {
-  id: string;
-  lawyer_id: string;
-  day_of_week: number; // 0 = Sunday … 6 = Saturday
-  start_time: string;  // "HH:mm"
-  end_time: string;    // "HH:mm"
+  id_working_schedule: number;
+  id_lawyer: number;
+  day_of_week: string; // e.g. 'Monday', 'Tuesday', …
+  start_time: string;  // "HH:mm:ss"
+  end_time: string;    // "HH:mm:ss"
 }
 
 export interface Vacation {
-  id: string;
-  lawyer_id: string;
-  starts_on: string; // "YYYY-MM-DD"
-  ends_on: string;   // "YYYY-MM-DD"
-  reason: string | null;
+  id_vacation: number;
+  id_lawyer: number;
+  start_date: string; // "YYYY-MM-DD"
+  end_date: string;   // "YYYY-MM-DD"
 }
 
 // ─── DTO types ────────────────────────────────────────────────────────────────
 
 export interface CreateAppointmentDto {
-  clientId: string;
-  lawyerId: string;
-  startsAt: string;
-  endsAt: string;
+  idLawyer: number;
+  idClient: number;
+  idSelectedContact: number;
+  subject: string;
+  description?: string;
+  startDatetime: string;
+  endDatetime: string;
   timezone?: string;
-  notes?: string;
 }
 
 export interface UpdateAppointmentDto {
-  clientId?: string;
-  lawyerId?: string;
-  startsAt?: string;
-  endsAt?: string;
+  idLawyer?: number;
+  idClient?: number;
+  idSelectedContact?: number;
+  subject?: string;
+  description?: string;
+  startDatetime?: string;
+  endDatetime?: string;
   timezone?: string;
-  status?: string;
-  notes?: string;
 }
 
 export interface WorkingScheduleSlotDto {
-  dayOfWeek: number;
+  dayOfWeek: string;
   startTime: string;
   endTime: string;
 }
 
 export interface AddVacationDto {
-  startsOn: string;
-  endsOn: string;
-  reason?: string;
+  startDate: string;
+  endDate: string;
 }
 
-export interface SubmitMessageDto {
-  name?: string;
-  email?: string;
-  message?: string;
+export interface CreateContactDto {
+  idLawyer?: number;
+  idClient?: number;
+  methodType: 'InPerson' | 'VideoCall' | 'PhoneCall';
+  value: string;
+  isDefault?: boolean;
+}
+
+export interface UpdateContactDto {
+  methodType?: 'InPerson' | 'VideoCall' | 'PhoneCall';
+  value?: string;
+  isDefault?: boolean;
 }

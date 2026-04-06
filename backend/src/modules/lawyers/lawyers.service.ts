@@ -6,7 +6,7 @@ export async function listLawyers(): Promise<Lawyer[]> {
   return repository.findAll();
 }
 
-export async function getLawyer(id: string): Promise<Lawyer> {
+export async function getLawyer(id: number): Promise<Lawyer> {
   const lawyer = await repository.findById(id);
   if (!lawyer) {
     throw new HttpError(`Lawyer not found: ${id}`, 404);
@@ -14,19 +14,19 @@ export async function getLawyer(id: string): Promise<Lawyer> {
   return lawyer;
 }
 
-export async function createLawyer(dto: Omit<Lawyer, 'id' | 'created_at'>): Promise<Lawyer> {
+export async function createLawyer(dto: Omit<Lawyer, 'id_lawyer'>): Promise<Lawyer> {
   return repository.create(dto);
 }
 
 export async function updateLawyer(
-  id: string,
-  dto: Partial<Omit<Lawyer, 'id' | 'created_at'>>,
+  id: number,
+  dto: Partial<Omit<Lawyer, 'id_lawyer'>>,
 ): Promise<Lawyer | null> {
   await getLawyer(id);
   return repository.update(id, dto);
 }
 
-export async function deleteLawyer(id: string): Promise<void> {
+export async function deleteLawyer(id: number): Promise<void> {
   await getLawyer(id);
   await repository.remove(id);
 }

@@ -3,32 +3,31 @@ import { assertValidDate } from '../../shared/utils/dateUtils';
 import { HttpError } from '../../shared/types';
 import type { Vacation, AddVacationDto } from '../../shared/types';
 
-export async function getVacations(lawyerId: string): Promise<Vacation[]> {
+export async function getVacations(lawyerId: number): Promise<Vacation[]> {
   return repository.findByLawyer(lawyerId);
 }
 
-export async function addVacation(lawyerId: string, dto: AddVacationDto): Promise<Vacation> {
-  const { startsOn, endsOn, reason } = dto;
+export async function addVacation(lawyerId: number, dto: AddVacationDto): Promise<Vacation> {
+  const { startDate, endDate } = dto;
 
-  if (!startsOn || !endsOn) {
-    throw new HttpError('startsOn and endsOn are required', 400);
+  if (!startDate || !endDate) {
+    throw new HttpError('startDate and endDate are required', 400);
   }
 
-  assertValidDate(startsOn, 'startsOn');
-  assertValidDate(endsOn, 'endsOn');
+  assertValidDate(startDate, 'startDate');
+  assertValidDate(endDate, 'endDate');
 
-  if (new Date(startsOn) > new Date(endsOn)) {
-    throw new HttpError('endsOn must be on or after startsOn', 400);
+  if (new Date(startDate) > new Date(endDate)) {
+    throw new HttpError('endDate must be on or after startDate', 400);
   }
 
   return repository.create({
-    lawyer_id: lawyerId,
-    starts_on: startsOn,
-    ends_on: endsOn,
-    reason: reason ?? null,
+    id_lawyer: lawyerId,
+    start_date: startDate,
+    end_date: endDate,
   });
 }
 
-export async function removeVacation(id: string): Promise<void> {
+export async function removeVacation(id: number): Promise<void> {
   await repository.remove(id);
 }
