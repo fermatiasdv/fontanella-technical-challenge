@@ -1,0 +1,16 @@
+{
+  "servers": {
+    "supabase-db": {
+      "type": "stdio",
+      "command": "powershell",
+      "args": [
+        "-NoLogo",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$envFile = Get-Item .env -ErrorAction SilentlyContinue; if (-not $envFile) { $envFile = Get-Item ..\\.env -ErrorAction SilentlyContinue }; if ($envFile) { Get-Content $envFile | ForEach-Object { if ($_ -match '^(?:\\s*#|\\s*)$') { return }; $parts = $_ -split '=',2; if ($parts.Length -eq 2) { $name = $parts[0].Trim(); $value = $parts[1].Trim(); Set-Item env:$name $value } } }; & npx @bytebase/dbhub@latest --transport stdio --dsn \"postgresql://postgres:$env:SUPABASE_DB_PASSWORD@db.gjnftqixijevvjlmozav.supabase.co:5432/postgres\""
+      ]
+    }
+  }
+}
