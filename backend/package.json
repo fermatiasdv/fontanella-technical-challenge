@@ -8,7 +8,10 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "lint": "eslint 'src/**/*.ts'"
+    "lint": "eslint 'src/**/*.ts'",
+    "db:init": "node ./src/shared/database/createDatabase/scripts/db-setup.js init",
+    "db:clear": "node ./src/shared/database/createDatabase/scripts/db-setup.js clear",
+    "db:drop": "node ./src/shared/database/createDatabase/scripts/db-setup.js drop"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -16,10 +19,11 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "express": "^4.19.2",
     "helmet": "^7.1.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "pg": "^8.20.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
