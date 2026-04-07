@@ -1,10 +1,5 @@
 /**
  * AddClientModal
- *
- * Fields: company_id | trade_name | location | timezone
- *       + Contact Methods (InPerson select, VideoCall / PhoneCall inputs)
- *
- * onSubmit receives (clientDto, contacts[]) — parent handles both API calls.
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -17,7 +12,7 @@ import ContactMethodsSection, {
 } from '../common/ContactMethodsSection';
 import type { ContactsState } from '../common/ContactMethodsSection';
 
-// ─── Re-export so other files that import from here still work ────────────────
+// ─── Re-export so other files still work ─────────────────────────────────────
 export type { ContactMethodInput } from '../common/ContactMethodsSection';
 
 // ─── Timezone options ─────────────────────────────────────────────────────────
@@ -61,19 +56,12 @@ export interface AddClientModalProps {
   onSubmit: (dto: CreateClientDto, contacts: ContactMethodInput[]) => Promise<void>;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const EMPTY_FORM: FormState = {
   company_id: '',
   trade_name: '',
   location:   '',
   timezone:   'America/Argentina/Buenos_Aires',
 };
-
-const inputBase =
-  'w-full bg-surface-container-high rounded-lg px-4 py-3 text-sm text-on-surface ' +
-  'placeholder:text-outline outline-none transition-all ' +
-  'focus:bg-surface-container-highest focus:ring-0 focus:shadow-[inset_2px_0_0_0_#005bbf]';
 
 function validate(form: FormState): FormErrors {
   const errors: FormErrors = {};
@@ -85,21 +73,21 @@ function validate(form: FormState): FormErrors {
   return errors;
 }
 
-// ─── Field ────────────────────────────────────────────────────────────────────
+// ─── Field sub-component ──────────────────────────────────────────────────────
 
 interface FieldProps { label: string; icon: string; error?: string; children: React.ReactNode; }
 
 function Field({ label, icon, error, children }: FieldProps) {
   return (
-    <div className="space-y-1.5">
-      <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant flex items-center gap-2">
-        <span className="material-symbols-outlined text-sm text-outline">{icon}</span>
+    <div className="form-field">
+      <label className="form-field__label">
+        <span className="material-symbols-outlined">{icon}</span>
         {label}
       </label>
       {children}
       {error && (
-        <p className="text-xs text-error flex items-center gap-1">
-          <span className="material-symbols-outlined text-xs">error</span>
+        <p className="form-field__error">
+          <span className="material-symbols-outlined">error</span>
           {error}
         </p>
       )}
@@ -175,53 +163,69 @@ export default function AddClientModal({ isOpen, onClose, onSubmit }: AddClientM
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm"
+      className="modal-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div
-        className="w-full max-w-lg mx-4 bg-surface-container-lowest rounded-2xl overflow-hidden max-h-[90vh] flex flex-col"
-        style={{ boxShadow: '0 12px 40px rgba(25, 28, 29, 0.12)' }}
-      >
+      <div className="modal-card">
         {/* Header */}
-        <div className="px-8 pt-8 pb-6 flex items-start justify-between shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-container rounded-xl flex items-center justify-center shadow-sm">
-              <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>domain_add</span>
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{
+              width: '3rem', height: '3rem',
+              background: 'linear-gradient(135deg, var(--c-primary), var(--c-primary-container))',
+              borderRadius: 'var(--r-xl)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span
+                className="material-symbols-outlined"
+                style={{ color: 'white', fontSize: '1.5rem', fontVariationSettings: "'FILL' 1" }}
+              >
+                domain_add
+              </span>
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-0.5">Client Management</p>
-              <h2 className="font-headline text-on-surface text-2xl font-extrabold tracking-tight">New Client</h2>
+              <p className="eyebrow" style={{ color: 'var(--c-primary)', marginBottom: '0.125rem' }}>
+                Client Management
+              </p>
+              <h2 style={{
+                fontFamily: 'var(--font-headline)', fontWeight: 800,
+                color: 'var(--c-on-surface)', fontSize: '1.5rem', letterSpacing: '-0.02em',
+              }}>
+                New Client
+              </h2>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors" aria-label="Close">
+          <button onClick={onClose} className="btn-icon" aria-label="Close">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col flex-1 overflow-hidden">
-          <div className="px-8 pb-2 space-y-5 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+          <div className="modal-body">
 
             <Field label="Trade Name" icon="badge" error={errors.trade_name}>
-              <input type="text" className={inputBase} placeholder="e.g. Stark Industries"
+              <input type="text" className="form-input" placeholder="e.g. Stark Industries"
                 value={form.trade_name} onChange={setField('trade_name')} autoFocus />
             </Field>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="form-grid-2">
               <Field label="Company ID" icon="tag" error={errors.company_id}>
-                <input type="text" className={inputBase} placeholder="e.g. CORP-101"
+                <input type="text" className="form-input" placeholder="e.g. CORP-101"
                   value={form.company_id} onChange={setField('company_id')} />
               </Field>
               <Field label="Location" icon="location_on" error={errors.location}>
-                <input type="text" className={inputBase} placeholder="e.g. Los Angeles, USA"
+                <input type="text" className="form-input" placeholder="e.g. Los Angeles, USA"
                   value={form.location} onChange={setField('location')} />
               </Field>
             </div>
 
             <Field label="Timezone" icon="schedule" error={errors.timezone}>
-              <select className={inputBase + ' cursor-pointer appearance-none'} value={form.timezone} onChange={setField('timezone')}>
-                {TIMEZONE_OPTIONS.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
-              </select>
+              <div className="form-select-wrap">
+                <select className="form-select" value={form.timezone} onChange={setField('timezone')}>
+                  {TIMEZONE_OPTIONS.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+                </select>
+              </div>
             </Field>
 
             <ContactMethodsSection
@@ -232,34 +236,31 @@ export default function AddClientModal({ isOpen, onClose, onSubmit }: AddClientM
             />
 
             {submitError && (
-              <div className="bg-error-container text-on-error-container rounded-lg px-4 py-3 text-sm flex items-center gap-2">
-                <span className="material-symbols-outlined text-base">error</span>
+              <div className="error-box">
+                <span className="material-symbols-outlined">error</span>
                 {submitError}
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="px-8 py-6 shrink-0 flex items-center justify-between gap-3 border-t border-surface-container">
+          <div className="modal-footer modal-footer--between">
             {form.trade_name.trim() ? (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-headline font-bold text-sm">{initials}</div>
-                <span className="text-xs text-on-surface-variant font-medium truncate max-w-[130px]">{form.trade_name.trim()}</span>
+              <div className="preview-initials">
+                <div className="preview-initials__avatar">{initials}</div>
+                <span className="preview-initials__name">{form.trade_name.trim()}</span>
               </div>
             ) : (
-              <span className="text-xs text-outline">Fill the form to preview</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--c-outline)' }}>Fill the form to preview</span>
             )}
-            <div className="flex gap-3">
-              <button type="button" onClick={onClose}
-                className="px-5 py-2.5 bg-surface-container-high text-on-surface rounded-lg text-sm font-bold hover:bg-surface-container-highest transition-colors">
-                Cancel
-              </button>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
               <button type="submit" disabled={!canSubmit}
                 title={!hasValidContact ? 'Add at least one contact method' : undefined}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary-container text-white rounded-lg text-sm font-bold shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100">
+                className="btn-primary">
                 {submitting
-                  ? <><span className="material-symbols-outlined text-base animate-spin">progress_activity</span>Saving…</>
-                  : <><span className="material-symbols-outlined text-base">domain_add</span>Add Client</>
+                  ? <><span className="material-symbols-outlined anim-spin">progress_activity</span>Saving…</>
+                  : <><span className="material-symbols-outlined">domain_add</span>Add Client</>
                 }
               </button>
             </div>

@@ -1,24 +1,11 @@
 /**
  * CreateLawyerModal — create & edit mode
- *
- * Create fields: full_name | national_id | location | timezone
- *   + Contact Methods: InPerson | VideoCall | PhoneCall (at least 1 required on create)
- *
- * Edit mode (initialLawyer prop provided):
- *   - Pre-fills the form fields
- *   - Hides the Contact Methods section (contacts are managed separately)
- *   - Submit calls onSubmit with the updated DTO
- *
- * Design rules (DESIGN.md):
- *  - Glassmorphism backdrop
- *  - surface-container-lowest card, ambient shadow
- *  - Inputs: surface-container-high fill, no border, 2px primary left-accent on focus
- *  - Primary CTA: gradient primary → primary-container
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import type { CreateLawyerDto, LawyerAPI } from '../../types/lawyer';
+import { contactApi } from '../../api/contact';
 import type { MethodType } from '../../api/contact';
 import ContactMethodsSection, {
   EMPTY_CONTACTS,
@@ -64,9 +51,7 @@ interface FormErrors {
 interface CreateLawyerModalProps {
   isOpen:         boolean;
   onClose:        () => void;
-  /** Create mode: receives (dto, contacts). Edit mode: receives (dto, []) */
   onSubmit:       (dto: CreateLawyerDto, contacts: ContactMethodInput[]) => Promise<void>;
-  /** When provided, opens in edit mode (no contact section) */
   initialLawyer?: LawyerAPI;
 }
 
@@ -78,13 +63,6 @@ const EMPTY_FORM: FormState = {
   location:    '',
   timezone:    'America/Argentina/Buenos_Aires',
 };
-
-// ─── Shared styles ────────────────────────────────────────────────────────────
-
-const inputBase =
-  'w-full bg-surface-container-high rounded-lg px-4 py-3 text-sm text-on-surface ' +
-  'placeholder:text-outline outline-none transition-all ' +
-  'focus:bg-surface-container-highest focus:ring-0 focus:shadow-[inset_2px_0_0_0_#005bbf]';
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -116,15 +94,15 @@ interface FieldProps {
 
 function Field({ label, icon, error, children }: FieldProps) {
   return (
-    <div className="space-y-1.5">
-      <label className="all-caps-label text-on-surface-variant font-bold flex items-center gap-2">
-        <span className="material-symbols-outlined text-sm text-outline">{icon}</span>
+    <div className="form-field">
+      <label className="form-field__label">
+        <span className="material-symbols-outlined">{icon}</span>
         {label}
       </label>
       {children}
       {error && (
-        <p className="text-xs text-error flex items-center gap-1">
-          <span className="material-symbols-outlined text-xs">error</span>
+        <p className="form-field__error">
+          <span className="material-symbols-outlined">error</span>
           {error}
         </p>
       )}
@@ -142,32 +120,44 @@ export default function CreateLawyerModal({
 }: CreateLawyerModalProps) {
   const isEditMode = Boolean(initialLawyer);
 
-  const [form, setForm]             = useState<FormState>(EMPTY_FORM);
-  const [contacts, setContacts]     = useState<ContactsState>(EMPTY_CONTACTS);
-  const [errors, setErrors]         = useState<FormErrors>({});
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm]               = useState<FormState>(EMPTY_FORM);
+  const [contacts, setContacts]       = useState<ContactsState>(EMPTY_CONTACTS);
+  const [errors, setErrors]           = useState<FormErrors>({});
+  const [submitting, setSubmitting]   = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [loadingContacts, setLoadingContacts] = useState(false);
 
-  // Seed form on open
   useEffect(() => {
-    if (isOpen) {
-      setForm(
-        initialLawyer
-          ? {
-              full_name:   initialLawyer.full_name,
-              national_id: initialLawyer.national_id,
-              location:    initialLawyer.location,
-              timezone:    initialLawyer.timezone,
-            }
-          : EMPTY_FORM,
-      );
+    if (!isOpen) return;
+    setErrors({});
+    setSubmitError(null);
+
+    if (initialLawyer) {
+      setForm({
+        full_name:   initialLawyer.full_name,
+        national_id: initialLawyer.national_id,
+        location:    initialLawyer.location,
+        timezone:    initialLawyer.timezone,
+      });
       setContacts(EMPTY_CONTACTS);
-      setErrors({});
-      setSubmitError(null);
+      setLoadingContacts(true);
+      contactApi
+        .listByLawyer(initialLawyer.id_lawyer)
+        .then((existing) => {
+          const state = { ...EMPTY_CONTACTS };
+          existing.forEach((c) => {
+            state[c.method_type] = { enabled: true, value: c.value };
+          });
+          setContacts(state);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingContacts(false));
+    } else {
+      setForm(EMPTY_FORM);
+      setContacts(EMPTY_CONTACTS);
     }
   }, [isOpen, initialLawyer]);
 
-  // Escape to close
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -175,7 +165,6 @@ export default function CreateLawyerModal({
     return () => window.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
-  // ─── Handlers ──────────────────────────────────────────────────────────
   const setField = useCallback(
     (field: keyof FormState) =>
       (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -196,16 +185,13 @@ export default function CreateLawyerModal({
     setContacts((prev) => ({ ...prev, [type]: { ...prev[type], value } }));
   }, []);
 
-  // ─── Derived ───────────────────────────────────────────────────────────
   const activeContacts  = getActiveContacts(contacts);
   const hasValidContact = activeContacts.length > 0;
-  // In edit mode contacts are not required
-  const canSubmit = (isEditMode || hasValidContact) && !submitting;
+  const canSubmit       = hasValidContact && !submitting && !loadingContacts;
 
   const initials = form.full_name
     .trim().split(/\s+/).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
 
-  // ─── Submit ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const validation = validate(form);
@@ -222,7 +208,7 @@ export default function CreateLawyerModal({
           location:    form.location.trim(),
           timezone:    form.timezone,
         },
-        isEditMode ? [] : activeContacts,
+        activeContacts,
       );
       onClose();
     } catch (err) {
@@ -236,34 +222,41 @@ export default function CreateLawyerModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm"
+      className="modal-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div
-        className="w-full max-w-lg mx-4 bg-surface-container-lowest rounded-2xl overflow-hidden max-h-[90vh] flex flex-col"
-        style={{ boxShadow: '0 12px 40px rgba(25, 28, 29, 0.12)' }}
-      >
+      <div className="modal-card">
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="px-8 pt-8 pb-6 flex items-start justify-between shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-container rounded-xl flex items-center justify-center shadow-sm">
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{
+              width: '3rem', height: '3rem',
+              background: 'linear-gradient(135deg, var(--c-primary), var(--c-primary-container))',
+              borderRadius: 'var(--r-xl)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
               <span
-                className="material-symbols-outlined text-white text-2xl"
-                style={{ fontVariationSettings: "'FILL' 1" }}
+                className="material-symbols-outlined"
+                style={{ color: 'white', fontSize: '1.5rem', fontVariationSettings: "'FILL' 1" }}
               >
                 {isEditMode ? 'edit' : 'person_add'}
               </span>
             </div>
             <div>
-              <p className="all-caps-label text-primary font-bold mb-0.5">Management Portal</p>
-              <h2 className="editorial-headline text-on-surface text-2xl font-extrabold">
+              <p className="eyebrow" style={{ color: 'var(--c-primary)', marginBottom: '0.125rem' }}>
+                Management Portal
+              </p>
+              <h2 style={{
+                fontFamily: 'var(--font-headline)', fontWeight: 800,
+                color: 'var(--c-on-surface)', fontSize: '1.5rem', letterSpacing: '-0.02em',
+              }}>
                 {isEditMode ? 'Edit Practitioner' : 'New Practitioner'}
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-outline hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
+            className="btn-icon"
             aria-label="Close"
           >
             <span className="material-symbols-outlined">close</span>
@@ -271,14 +264,14 @@ export default function CreateLawyerModal({
         </div>
 
         {/* ── Scrollable form body ─────────────────────────────────────────── */}
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col flex-1 overflow-hidden">
-          <div className="px-8 pb-2 space-y-5 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+          <div className="modal-body">
 
             {/* Full Name */}
             <Field label="Full Name" icon="badge" error={errors.full_name}>
               <input
                 type="text"
-                className={inputBase}
+                className="form-input"
                 placeholder="e.g. Horacio Altamirano"
                 value={form.full_name}
                 onChange={setField('full_name')}
@@ -287,11 +280,11 @@ export default function CreateLawyerModal({
             </Field>
 
             {/* National ID + Location */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="form-grid-2">
               <Field label="National ID (DNI)" icon="fingerprint" error={errors.national_id}>
                 <input
                   type="text"
-                  className={inputBase}
+                  className="form-input"
                   placeholder="e.g. 28.495.102"
                   value={form.national_id}
                   onChange={setField('national_id')}
@@ -300,7 +293,7 @@ export default function CreateLawyerModal({
               <Field label="Location" icon="location_on" error={errors.location}>
                 <input
                   type="text"
-                  className={inputBase}
+                  className="form-input"
                   placeholder="e.g. Buenos Aires, AR"
                   value={form.location}
                   onChange={setField('location')}
@@ -310,19 +303,26 @@ export default function CreateLawyerModal({
 
             {/* Timezone */}
             <Field label="Timezone" icon="schedule" error={errors.timezone}>
-              <select
-                className={inputBase + ' cursor-pointer appearance-none'}
-                value={form.timezone}
-                onChange={setField('timezone')}
-              >
-                {TIMEZONE_OPTIONS.map((tz) => (
-                  <option key={tz.value} value={tz.value}>{tz.label}</option>
-                ))}
-              </select>
+              <div className="form-select-wrap">
+                <select
+                  className="form-select"
+                  value={form.timezone}
+                  onChange={setField('timezone')}
+                >
+                  {TIMEZONE_OPTIONS.map((tz) => (
+                    <option key={tz.value} value={tz.value}>{tz.label}</option>
+                  ))}
+                </select>
+              </div>
             </Field>
 
-            {/* ── Contact Methods (create mode only) ──────────────────────── */}
-            {!isEditMode && (
+            {/* ── Contact Methods ──────────────────────────────────────────── */}
+            {loadingContacts ? (
+              <div className="loading-contacts">
+                <span className="material-symbols-outlined anim-spin">progress_activity</span>
+                Loading contact methods…
+              </div>
+            ) : (
               <ContactMethodsSection
                 contacts={contacts}
                 onToggle={toggleMethod}
@@ -333,51 +333,44 @@ export default function CreateLawyerModal({
 
             {/* Server error */}
             {submitError && (
-              <div className="bg-error-container text-on-error-container rounded-lg px-4 py-3 text-sm flex items-center gap-2">
-                <span className="material-symbols-outlined text-base">error</span>
+              <div className="error-box">
+                <span className="material-symbols-outlined">error</span>
                 {submitError}
               </div>
             )}
           </div>
 
           {/* ── Footer ──────────────────────────────────────────────────────── */}
-          <div className="px-8 py-6 shrink-0 flex items-center justify-between gap-3 border-t border-surface-container">
-            {/* Initials preview */}
+          <div className="modal-footer modal-footer--between">
             {form.full_name.trim() ? (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-headline font-bold text-sm">
-                  {initials}
-                </div>
-                <span className="text-xs text-on-surface-variant font-medium truncate max-w-[140px]">
-                  {form.full_name.trim()}
-                </span>
+              <div className="preview-initials">
+                <div className="preview-initials__avatar">{initials}</div>
+                <span className="preview-initials__name">{form.full_name.trim()}</span>
               </div>
             ) : (
-              <span className="text-xs text-outline">Fill the form to preview</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--c-outline)' }}>
+                Fill the form to preview
+              </span>
             )}
 
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-5 py-2.5 bg-surface-container-high text-on-surface rounded-lg text-sm font-bold hover:bg-surface-container-highest transition-colors"
-              >
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" onClick={onClose} className="btn-secondary">
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!canSubmit}
                 title={!isEditMode && !hasValidContact ? 'Add at least one contact method' : undefined}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary-container text-white rounded-lg text-sm font-bold shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                className="btn-primary"
               >
                 {submitting ? (
                   <>
-                    <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                    <span className="material-symbols-outlined anim-spin">progress_activity</span>
                     Saving…
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-base">
+                    <span className="material-symbols-outlined">
                       {isEditMode ? 'save' : 'person_add'}
                     </span>
                     {isEditMode ? 'Save Changes' : 'Add Practitioner'}

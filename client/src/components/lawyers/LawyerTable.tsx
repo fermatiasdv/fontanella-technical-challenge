@@ -1,4 +1,4 @@
-import type  { LawyerAPI } from '../../types/lawyer';
+import type { LawyerAPI } from '../../types/lawyer';
 import LawyerRow from './LawyerRow';
 
 interface LawyerTableProps {
@@ -10,11 +10,11 @@ interface LawyerTableProps {
 }
 
 const TABLE_HEADERS = [
-  { label: 'Practitioner Name', colSpan: 'col-span-4' },
-  { label: 'DNI',               colSpan: 'col-span-2' },
-  { label: 'Location',          colSpan: 'col-span-2' },
-  { label: 'Timezone',          colSpan: 'col-span-3' },
-  { label: '',                  colSpan: 'col-span-1' },
+  'Practitioner Name',
+  'DNI',
+  'Location',
+  'Timezone',
+  '',
 ];
 
 export default function LawyerTable({
@@ -25,13 +25,11 @@ export default function LawyerTable({
   onDeleteLawyer,
 }: LawyerTableProps) {
   return (
-    <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm">
+    <div className="lawyer-table">
       {/* Header */}
-      <div className="grid grid-cols-12 px-8 py-4 bg-surface-container-low">
-        {TABLE_HEADERS.map((h) => (
-          <div key={h.label} className={`${h.colSpan} all-caps-label text-on-surface-variant font-bold`}>
-            {h.label}
-          </div>
+      <div className="lawyer-table__head">
+        {TABLE_HEADERS.map((h, i) => (
+          <div key={i} className="lawyer-table__th">{h}</div>
         ))}
       </div>
 

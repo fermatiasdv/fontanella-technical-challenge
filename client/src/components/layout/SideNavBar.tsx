@@ -1,4 +1,4 @@
-type PageKey = 'lawyers' | 'clients' | 'scheduler';
+type PageKey = 'lawyers' | 'clients' | 'scheduler' | 'appointments';
 
 interface NavItem {
   icon:    string;
@@ -7,9 +7,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { icon: 'gavel',          label: 'Practitioners', pageKey: 'lawyers'   },
-  { icon: 'calendar_month', label: 'Scheduler',     pageKey: 'scheduler' },
-  { icon: 'group',          label: 'Clients',       pageKey: 'clients'   },
+  { icon: 'gavel',          label: 'Practitioners', pageKey: 'lawyers'      },
+  { icon: 'event',          label: 'Appointments',  pageKey: 'appointments' },
+  { icon: 'calendar_month', label: 'Scheduler',     pageKey: 'scheduler'    },
+  { icon: 'group',          label: 'Clients',       pageKey: 'clients'      },
 ];
 
 interface SideNavBarProps {
@@ -18,47 +19,33 @@ interface SideNavBarProps {
 
 export default function SideNavBar({ activePage = 'lawyers' }: SideNavBarProps) {
   return (
-    <nav className="fixed left-0 top-0 bottom-0 flex flex-col py-8 px-6 bg-slate-50 h-screen w-64 z-50">
+    <nav className="sidebar">
       {/* Logo */}
-      <div className="mb-10 px-4">
-        <h1 className="font-headline font-bold text-slate-900 text-lg tracking-tighter">
-          FONTANELLA SRL
-        </h1>
+      <div className="sidebar__logo">
+        FONTANELLA SRL
       </div>
 
       {/* Navigation Links */}
-      <div className="space-y-1 flex-grow">
+      <div style={{ flexGrow: 1 }}>
         {navItems.map((item) => {
           const isActive = item.pageKey === activePage;
-          return isActive ? (
+          return (
             <a
               key={item.label}
               href={`?page=${item.pageKey}`}
-              className="flex items-center gap-3 py-3 text-blue-700 font-bold border-l-2 border-blue-600 pl-4 transition-all"
+              className={`sidebar__nav-link${isActive ? ' sidebar__nav-link--active' : ''}`}
             >
               <span className="material-symbols-outlined">{item.icon}</span>
-              <span className="font-headline text-sm tracking-tight">{item.label}</span>
-            </a>
-          ) : (
-            <a
-              key={item.label}
-              href={`?page=${item.pageKey}`}
-              className="flex items-center gap-3 py-3 text-slate-500 hover:text-slate-900 pl-4 transition-colors hover:bg-slate-100 rounded-r-lg"
-            >
-              <span className="material-symbols-outlined">{item.icon}</span>
-              <span className="font-headline text-sm tracking-tight">{item.label}</span>
+              <span>{item.label}</span>
             </a>
           );
         })}
       </div>
 
       {/* New Appointment CTA */}
-      <div className="mt-auto px-4">
-        <a
-          href="?page=scheduler"
-          className="w-full py-3 bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-lg font-headline text-sm font-bold shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2"
-        >
-          <span className="material-symbols-outlined text-sm">add</span>
+      <div style={{ marginTop: 'auto' }}>
+        <a href="?page=appointments" className="sidebar__cta">
+          <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>add</span>
           New Appointment
         </a>
       </div>

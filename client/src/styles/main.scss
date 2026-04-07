@@ -1,0 +1,25 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// main.scss — Single entry point for all application styles
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 1. Design tokens (CSS custom properties)
+@import 'tokens';
+
+// 2. Global base / reset
+@import 'base';
+
+// 3. Keyframe animations
+@import 'animations';
+
+// 4. Shared primitives (buttons, forms, modals, etc.)
+@import 'shared';
+
+// 5. Component styles
+@import 'components/layout';
+@import 'components/page-header';
+@import 'components/tables';
+@import 'components/contact-methods';
+@import 'components/search-bar';
+@import 'components/active-context';
+@import 'components/scheduler';
+@import 'components/appointments';

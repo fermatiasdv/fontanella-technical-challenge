@@ -1,0 +1,88 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Design Tokens — Material Design 3 colour palette + typography + spacing
+//
+// NOTE: since the sass stub passes SCSS as-is, all tokens are defined as CSS
+// custom properties on :root so any browser can read them with var().
+// Once the project installs the real sass package (npm i -D sass), these can
+// also be referenced as $-prefixed SCSS variables.
+// ─────────────────────────────────────────────────────────────────────────────
+
+:root {
+  // ── Primary ──────────────────────────────────────────────────────────────
+  --c-primary:                  #005bbf;
+  --c-primary-container:        #1a73e8;
+  --c-on-primary:               #ffffff;
+  --c-on-primary-container:     #ffffff;
+  --c-primary-fixed:            #d8e2ff;
+  --c-primary-fixed-dim:        #adc7ff;
+  --c-on-primary-fixed:         #001a41;
+  --c-on-primary-fixed-variant: #004493;
+
+  // ── Secondary ─────────────────────────────────────────────────────────────
+  --c-secondary:                    #475e8c;
+  --c-secondary-container:          #b2c9fe;
+  --c-on-secondary:                 #ffffff;
+  --c-on-secondary-container:       #3d5481;
+  --c-secondary-fixed:              #d8e2ff;
+  --c-secondary-fixed-dim:          #afc7fb;
+  --c-on-secondary-fixed:           #001a41;
+  --c-on-secondary-fixed-variant:   #2e4673;
+
+  // ── Tertiary ──────────────────────────────────────────────────────────────
+  --c-tertiary:                     #9e4300;
+  --c-tertiary-container:           #c55500;
+  --c-tertiary-fixed:               #ffdbcb;
+  --c-tertiary-fixed-dim:           #ffb691;
+  --c-on-tertiary:                  #ffffff;
+  --c-on-tertiary-container:        #0e0200;
+  --c-on-tertiary-fixed:            #341100;
+
+  // ── Error ─────────────────────────────────────────────────────────────────
+  --c-error:                  #ba1a1a;
+  --c-error-container:        #ffdad6;
+  --c-on-error:               #ffffff;
+  --c-on-error-container:     #93000a;
+
+  // ── Surface ───────────────────────────────────────────────────────────────
+  --c-surface:                    #f8f9fa;
+  --c-surface-dim:                #d9dadb;
+  --c-surface-container-lowest:   #ffffff;
+  --c-surface-container-low:      #f3f4f5;
+  --c-surface-container:          #edeeef;
+  --c-surface-container-high:     #e7e8e9;
+  --c-surface-container-highest:  #e1e3e4;
+  --c-on-surface:                 #191c1d;
+  --c-on-surface-variant:         #414754;
+  --c-surface-variant:            #e1e3e4;
+  --c-outline:                    #727785;
+  --c-outline-variant:            #c1c6d6;
+  --c-background:                 #f8f9fa;
+  --c-on-background:              #191c1d;
+
+  // ── Typography ────────────────────────────────────────────────────────────
+  --font-headline:  'Manrope', sans-serif;
+  --font-body:      'Inter', sans-serif;
+
+  // ── Radii ─────────────────────────────────────────────────────────────────
+  --r-sm:   0.125rem;
+  --r-md:   0.25rem;
+  --r-lg:   0.5rem;
+  --r-xl:   0.75rem;
+  --r-2xl:  1rem;
+  --r-full: 9999px;
+
+  // ── Z-index layers ─────────────────────────────────────────────────────────
+  --z-topbar:  40;
+  --z-sidebar: 50;
+  --z-drawer:  60;
+  --z-modal:   70;
+
+  // ── Layout ────────────────────────────────────────────────────────────────
+  --sidebar-w:  16rem;
+  --topbar-h:   4rem;
+
+  // ── Shadows ───────────────────────────────────────────────────────────────
+  --shadow-sm:  0 2px 8px rgba(25, 28, 29, 0.06);
+  --shadow-md:  0 4px 24px rgba(25, 28, 29, 0.06);
+  --shadow-lg:  0 12px 40px rgba(25, 28, 29, 0.12);
+}

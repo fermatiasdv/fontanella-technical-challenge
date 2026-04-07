@@ -32,6 +32,9 @@ export interface CreateContactDto {
 const BASE = '/api/v1/contact';
 
 export const contactApi = {
+  listByLawyer: (lawyerId: number, signal?: AbortSignal): Promise<ContactAPI[]> =>
+    apiFetch<ContactAPI[]>(`${BASE}/lawyer/${lawyerId}`, { signal }),
+
   listByClient: (clientId: number, signal?: AbortSignal): Promise<ContactAPI[]> =>
     apiFetch<ContactAPI[]>(`${BASE}/client/${clientId}`, { signal }),
 

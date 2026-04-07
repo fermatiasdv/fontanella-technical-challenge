@@ -1,0 +1,333 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Tables — Lawyer table + Client table + shared pagination
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Lawyer Table (CSS grid layout) ───────────────────────────────────────────
+
+.lawyer-table {
+  background-color: var(--c-surface-container-lowest);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+
+  & .lawyer-table__head {
+    display: grid;
+    grid-template-columns: 4fr 2fr 2fr 3fr 1fr;
+    padding: 1rem 2rem;
+    background-color: var(--c-surface-container-low);
+  }
+
+  & .lawyer-table__th {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--c-on-surface-variant);
+  }
+}
+
+// ── Lawyer Row ────────────────────────────────────────────────────────────────
+
+.lawyer-row {
+  display: grid;
+  grid-template-columns: 4fr 2fr 2fr 3fr 1fr;
+  padding: 1.5rem 2rem;
+  align-items: center;
+  border-left: 4px solid transparent;
+  transition: background-color 0.15s;
+  position: relative;
+
+  &:hover { background-color: var(--c-surface-container-low); }
+
+  &--active {
+    border-left-color: var(--c-primary);
+  }
+
+  & .lawyer-row__name-cell {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  & .lawyer-row__avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--r-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-headline);
+    font-weight: 700;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    background-color: var(--c-surface-container-high);
+    color: var(--c-on-surface-variant);
+
+    &--active {
+      background-color: var(--c-primary-fixed);
+      color: var(--c-primary);
+    }
+  }
+
+  & .lawyer-row__name {
+    font-family: var(--font-headline);
+    font-weight: 700;
+    color: var(--c-on-surface);
+  }
+
+  & .lawyer-row__badge {
+    display: inline-block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--r-full);
+    color: var(--c-on-surface-variant);
+
+    &--active {
+      background-color: rgba(0, 91, 191, 0.1);
+      color: var(--c-primary);
+    }
+  }
+
+  & .lawyer-row__field {
+    font-size: 0.875rem;
+    color: var(--c-on-surface-variant);
+    font-weight: 500;
+  }
+
+  & .lawyer-row__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  &:hover .lawyer-row__actions { opacity: 1; }
+
+  & .lawyer-row__action-btn {
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--c-on-surface-variant);
+    transition: color 0.15s;
+
+    &:hover { color: var(--c-primary); }
+    &:hover.delete { color: var(--c-error); }
+  }
+
+  & .lawyer-row__action-btn--delete:hover { color: var(--c-error) !important; }
+}
+
+// ── Lawyer Pagination ─────────────────────────────────────────────────────────
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1rem;
+
+  & .pagination__info {
+    font-size: 0.75rem;
+    color: var(--c-on-surface-variant);
+    font-weight: 500;
+  }
+
+  & .pagination__pages {
+    display: flex;
+    gap: 1rem;
+  }
+
+  & .pagination__btn {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--c-on-surface-variant);
+    transition: color 0.15s;
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    &:hover { color: var(--c-primary); }
+    &--active { color: var(--c-primary); }
+    &:disabled { opacity: 0.4; cursor: default; }
+  }
+}
+
+// ── Client Table (HTML <table>) ───────────────────────────────────────────────
+
+.client-table {
+  background-color: var(--c-surface-container-lowest);
+  border-radius: var(--r-2xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--c-surface-container);
+
+  & table {
+    width: 100%;
+    text-align: left;
+    border-collapse: collapse;
+  }
+
+  & .client-table__head {
+    background-color: var(--c-surface-container-low);
+  }
+
+  & .client-table__th {
+    padding: 1rem 1.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--c-on-surface-variant);
+    border-bottom: 1px solid var(--c-surface-container);
+
+    &:first-child { padding-left: 2rem; }
+    &:last-child  { padding-right: 2rem; }
+  }
+
+  & .client-table__body tr {
+    border-bottom: 1px solid var(--c-surface-container);
+    &:last-child { border-bottom: none; }
+  }
+
+  & .client-table__empty-cell {
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--c-on-surface-variant);
+    font-size: 0.875rem;
+
+    & span.material-symbols-outlined {
+      display: block;
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      color: var(--c-outline);
+    }
+  }
+
+  & .client-table__footer {
+    padding: 1rem 2rem;
+    background-color: var(--c-surface-container-low);
+    border-top: 1px solid var(--c-surface-container);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  & .client-table__count {
+    font-size: 0.75rem;
+    color: var(--c-on-surface-variant);
+  }
+
+  & .client-table__count strong { color: var(--c-on-surface); }
+
+  & .client-table__pager {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  & .client-table__pager-btn {
+    padding: 0.375rem;
+    border-radius: var(--r-sm);
+    background-color: var(--c-surface-container-lowest);
+    border: 1px solid var(--c-surface-container);
+    color: var(--c-on-surface-variant);
+    cursor: pointer;
+    transition: color 0.15s;
+    display: inline-flex;
+    align-items: center;
+
+    &:hover { color: var(--c-on-surface); }
+    &:disabled { opacity: 0.4; cursor: default; }
+  }
+}
+
+// ── Client Row ────────────────────────────────────────────────────────────────
+
+.client-row {
+  transition: background-color 0.15s;
+
+  &:hover { background-color: rgba(243, 244, 245, 0.5); }
+
+  & .client-row__name-cell { padding: 1.5rem 2rem; }
+  & .client-row__cell      { padding: 1.5rem; }
+  & .client-row__actions-cell { padding: 1.5rem 2rem; text-align: right; }
+
+  & .client-row__name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  & .client-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--r-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-headline);
+    font-weight: 700;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+
+    &--blue   { background-color: var(--c-primary-fixed);   color: var(--c-primary);   }
+    &--slate  { background-color: var(--c-secondary-fixed); color: var(--c-secondary); }
+    &--amber  { background-color: var(--c-tertiary-fixed);  color: var(--c-tertiary);  }
+  }
+
+  & .client-row__trade-name {
+    font-family: var(--font-headline);
+    font-weight: 700;
+    color: var(--c-on-surface);
+    letter-spacing: -0.01em;
+  }
+
+  & .client-row__company-id {
+    font-size: 0.6875rem;
+    color: var(--c-on-surface-variant);
+  }
+
+  & .client-row__field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-on-surface);
+
+    & .material-symbols-outlined {
+      font-size: 0.875rem;
+      color: var(--c-outline);
+    }
+  }
+
+  & .client-row__field--muted { color: var(--c-on-surface-variant); }
+
+  & .client-row__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  &:hover .client-row__actions { opacity: 1; }
+
+  & .client-row__action-btn {
+    padding: 0.5rem;
+    border-radius: var(--r-lg);
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--c-on-surface-variant);
+    transition: color 0.15s, background-color 0.15s;
+
+    &:hover { background-color: var(--c-surface-container); }
+    &--delete:hover { color: var(--c-error); }
+    &--edit:hover   { color: var(--c-primary); }
+  }
+}

@@ -1,47 +1,35 @@
 import { useState } from 'react';
 import { useLawyers } from '../hooks/useLawyers';
+import { contactApi } from '../api/contact';
 import type { LawyerAPI, ActiveContext, CreateLawyerDto } from '../types/lawyer';
+import type { ContactMethodInput } from '../components/common/ContactMethodsSection';
 
 import PageHeader from '../components/lawyers/PageHeader';
 import LawyerTable from '../components/lawyers/LawyerTable';
 import Pagination from '../components/lawyers/Pagination';
 import CreateLawyerModal from '../components/lawyers/CreateLawyerModal';
-import ActiveContextCard from '../components/sidebar/ActiveContextCard';
 
 function buildActiveContext(lawyer: LawyerAPI): ActiveContext {
   return {
     lawyer,
-    appointments: 0,                 // TODO: derive from appointments endpoint
+    appointments: 0,
   };
 }
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 function TableSkeleton() {
-  return (
-    <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm animate-pulse">
-      <div className="h-12 bg-surface-container-low" />
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 px-8 py-6 border-l-4 border-transparent">
-          <div className="w-10 h-10 rounded-full bg-surface-container-high" />
-          <div className="flex-1 space-y-2">
-            <div className="h-3 w-48 bg-surface-container-high rounded" />
-            <div className="h-2 w-24 bg-surface-container rounded" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  return <div className="table-skeleton anim-pulse" />;
 }
 
 // ─── Error banner ─────────────────────────────────────────────────────────────
 function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="bg-error-container text-on-error-container rounded-xl px-6 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
+    <div className="error-banner">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <span className="material-symbols-outlined">error</span>
-        <span className="text-sm font-medium">{message}</span>
+        <span>{message}</span>
       </div>
-      <button onClick={onRetry} className="text-xs font-bold underline hover:no-underline">
+      <button onClick={onRetry} style={{ fontSize: '0.75rem', fontWeight: 700, textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}>
         Retry
       </button>
     </div>
@@ -75,9 +63,22 @@ export default function LawyerManagementHome() {
     await createLawyer(dto);
   };
 
-  const handleEditLawyer = async (dto: CreateLawyerDto) => {
+  const handleEditLawyer = async (dto: CreateLawyerDto, contacts: ContactMethodInput[]) => {
     if (!editingLawyer) return;
-    await updateLawyer(editingLawyer.id_lawyer, dto);
+    const id = editingLawyer.id_lawyer;
+    await updateLawyer(id, dto);
+    const existing = await contactApi.listByLawyer(id);
+    await Promise.all(existing.map((c) => contactApi.remove(c.id_contact)));
+    await Promise.all(
+      contacts.map((c, idx) =>
+        contactApi.create({
+          idLawyer:   id,
+          methodType: c.method_type,
+          value:      c.value,
+          isDefault:  idx === 0,
+        }),
+      ),
+    );
   };
 
   const handleDeleteLawyer = async (lawyer: LawyerAPI) => {
@@ -92,12 +93,12 @@ export default function LawyerManagementHome() {
 
   return (
     <>
-      <main className="ml-64 p-10 min-h-[calc(100vh-4rem)]">
+      <main className="page">
         <PageHeader onAddLawyer={() => setIsCreateModalOpen(true)} />
 
-        <div className="grid grid-cols-12 gap-8">
+        <div className="page-grid">
           {/* ── Main area ─────────────────────────────────────────── */}
-          <div className="col-span-12 lg:col-span-9 space-y-6">
+          <div className="page-grid__main">
             {error ? (
               <ErrorBanner message={error} onRetry={refetch} />
             ) : loading ? (
@@ -120,28 +121,16 @@ export default function LawyerManagementHome() {
               onPageChange={setCurrentPage}
             />
           </div>
-
-          {/* ── Contextual sidebar ────────────────────────────────── */}
-          <div className="col-span-12 lg:col-span-3 space-y-8">
-            {selectedLawyer && (
-              <ActiveContextCard
-                context={buildActiveContext(selectedLawyer)}
-                onViewProfile={() => console.log('TODO: navigate to profile', selectedLawyer.id_lawyer)}
-                onRevoke={() => console.log('TODO: revoke access', selectedLawyer.id_lawyer)}
-              />
-            )}
-          </div>
+          
         </div>
       </main>
 
-      {/* Create modal */}
       <CreateLawyerModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateLawyer}
       />
 
-      {/* Edit modal — reuses the same component, pre-filled */}
       <CreateLawyerModal
         isOpen={editingLawyer !== null}
         onClose={() => setEditingLawyer(null)}

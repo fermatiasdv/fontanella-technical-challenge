@@ -1,0 +1,24 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Animations
+// ─────────────────────────────────────────────────────────────────────────────
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+@keyframes scale-down {
+  to { transform: scale(0.95); }
+}
+
+// ── Utility classes ───────────────────────────────────────────────────────────
+
+.anim-spin   { animation: spin  0.8s linear infinite; }
+.anim-pulse  { animation: pulse 1.5s ease-in-out infinite; }
+
+// Scale on active (replaces Tailwind's active:scale-95)
+.active-scale:active { transform: scale(0.95); }

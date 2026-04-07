@@ -1,8 +1,84 @@
 import * as repository from './appointments.repository';
+import * as workingScheduleRepo from '../working-schedule/workingSchedule.repository';
+import * as vacationsRepo from '../vacations/vacations.repository';
+import * as lawyersRepo from '../lawyers/lawyers.repository';
 import { normalizeToUTC } from '../../shared/services/timezone/timezoneService';
 import { assertValidDate } from '../../shared/utils/dateUtils';
 import { HttpError } from '../../shared/types';
 import type { Appointment, CreateAppointmentDto, UpdateAppointmentDto } from '../../shared/types';
+
+// ─── Timezone helpers (pure JS — no external API call needed) ─────────────────
+
+/**
+ * Given a UTC ISO string and an IANA timezone, returns:
+ *  - dayOfWeek : e.g. "Monday"
+ *  - timeStr   : "HH:mm:ss" in the local timezone
+ *  - dateStr   : "YYYY-MM-DD" in the local timezone
+ */
+function utcToLocalInfo(utcIso: string, tz: string) {
+  const d = new Date(utcIso);
+  const dayOfWeek = d.toLocaleDateString('en-US', { weekday: 'long', timeZone: tz });
+  const timeStr   = d.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }); // "HH:mm:ss"
+  const dateStr   = d.toLocaleDateString('en-CA', { timeZone: tz });                // "YYYY-MM-DD"
+  return { dayOfWeek, timeStr, dateStr };
+}
+
+// ─── Working-hours & vacation validation ──────────────────────────────────────
+
+async function assertWithinWorkingHours(
+  idLawyer: number,
+  utcStart: string,
+  utcEnd: string,
+) {
+  const lawyer = await lawyersRepo.findById(idLawyer);
+  if (!lawyer) throw new HttpError(`Lawyer not found: ${idLawyer}`, 404);
+
+  const tz = lawyer.timezone || 'UTC';
+
+  const startInfo = utcToLocalInfo(utcStart, tz);
+  const endInfo   = utcToLocalInfo(utcEnd,   tz);
+
+  // ── 1. Validate working schedule ────────────────────────────────────────────
+  const schedule = await workingScheduleRepo.findByLawyer(idLawyer);
+  const daySlot  = schedule.find((s) => s.day_of_week === startInfo.dayOfWeek);
+
+  if (!daySlot) {
+    throw new HttpError(
+      `${lawyer.full_name} no tiene horario laboral configurado para el ${startInfo.dayOfWeek}.`,
+      422,
+    );
+  }
+
+  // Compare as "HH:mm:ss" strings — lexicographic order is correct for 24h time
+  if (startInfo.timeStr < daySlot.start_time) {
+    throw new HttpError(
+      `El horario de inicio (${startInfo.timeStr}) es anterior al horario de entrada del abogado (${daySlot.start_time}) el ${startInfo.dayOfWeek}.`,
+      422,
+    );
+  }
+  if (endInfo.timeStr > daySlot.end_time) {
+    throw new HttpError(
+      `El horario de fin (${endInfo.timeStr}) excede el horario de salida del abogado (${daySlot.end_time}) el ${startInfo.dayOfWeek}.`,
+      422,
+    );
+  }
+
+  // ── 2. Validate vacations ────────────────────────────────────────────────────
+  const vacations   = await vacationsRepo.findByLawyer(idLawyer);
+  const apptDate    = startInfo.dateStr; // "YYYY-MM-DD"
+
+  const vacConflict = vacations.find(
+    (v) => apptDate >= v.start_date && apptDate <= v.end_date,
+  );
+  if (vacConflict) {
+    throw new HttpError(
+      `${lawyer.full_name} está de vacaciones desde el ${vacConflict.start_date} hasta el ${vacConflict.end_date}.`,
+      422,
+    );
+  }
+}
+
+// ─── Service functions ────────────────────────────────────────────────────────
 
 export async function listAppointments(query: { limit?: number; offset?: number } = {}): Promise<Appointment[]> {
   return repository.findAll(query);
@@ -32,6 +108,10 @@ export async function createAppointment(dto: CreateAppointmentDto): Promise<Appo
     throw new HttpError('endDatetime must be after startDatetime', 400);
   }
 
+  // ── Validate working hours and vacations ─────────────────────────────────────
+  await assertWithinWorkingHours(idLawyer, utcStart, utcEnd);
+
+  // ── Validate no overlap with existing appointments ───────────────────────────
   const conflicts = await repository.findOverlapping(utcStart, utcEnd);
   if (conflicts.length > 0) {
     const err = new HttpError('The selected time slot overlaps with an existing appointment', 409);
@@ -57,21 +137,28 @@ export async function updateAppointment(id: number, dto: UpdateAppointmentDto): 
 
   if (dto.startDatetime !== undefined || dto.endDatetime !== undefined) {
     const rawStart = dto.startDatetime ?? current.start_datetime;
-    const rawEnd = dto.endDatetime ?? current.end_datetime;
+    const rawEnd   = dto.endDatetime   ?? current.end_datetime;
     const timezone = dto.timezone;
 
     assertValidDate(rawStart, 'startDatetime');
-    assertValidDate(rawEnd, 'endDatetime');
+    assertValidDate(rawEnd,   'endDatetime');
 
     const [utcStart, utcEnd] = await Promise.all([
       normalizeToUTC(rawStart, timezone),
-      normalizeToUTC(rawEnd, timezone),
+      normalizeToUTC(rawEnd,   timezone),
     ]);
 
     if (new Date(utcStart) >= new Date(utcEnd)) {
       throw new HttpError('endDatetime must be after startDatetime', 400);
     }
 
+    // Determine which lawyer to validate against (may be changing)
+    const lawyerId = dto.idLawyer ?? current.id_lawyer;
+
+    // ── Validate working hours and vacations ─────────────────────────────────
+    await assertWithinWorkingHours(lawyerId, utcStart, utcEnd);
+
+    // ── Validate no overlap ──────────────────────────────────────────────────
     const conflicts = await repository.findOverlapping(utcStart, utcEnd, id);
     if (conflicts.length > 0) {
       const err = new HttpError('The selected time slot overlaps with an existing appointment', 409);
@@ -80,14 +167,14 @@ export async function updateAppointment(id: number, dto: UpdateAppointmentDto): 
     }
 
     payload.start_datetime = utcStart;
-    payload.end_datetime = utcEnd;
+    payload.end_datetime   = utcEnd;
   }
 
-  if (dto.subject !== undefined) payload.subject = dto.subject;
-  if (dto.description !== undefined) payload.description = dto.description ?? null;
-  if (dto.idLawyer !== undefined) payload.id_lawyer = dto.idLawyer;
-  if (dto.idClient !== undefined) payload.id_client = dto.idClient;
-  if (dto.idSelectedContact !== undefined) payload.id_selected_contact = dto.idSelectedContact;
+  if (dto.subject            !== undefined) payload.subject              = dto.subject;
+  if (dto.description        !== undefined) payload.description          = dto.description ?? null;
+  if (dto.idLawyer           !== undefined) payload.id_lawyer            = dto.idLawyer;
+  if (dto.idClient           !== undefined) payload.id_client            = dto.idClient;
+  if (dto.idSelectedContact  !== undefined) payload.id_selected_contact  = dto.idSelectedContact;
 
   return repository.update(id, payload);
 }

@@ -14,20 +14,19 @@ export default function Pagination({
   onPageChange,
 }: PaginationProps) {
   const showing = Math.min(itemsPerPage, totalItems);
-
   const pages = Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i + 1);
 
   return (
-    <div className="flex justify-between items-center px-4">
-      <p className="text-xs text-on-surface-variant font-medium">
+    <div className="pagination">
+      <p className="pagination__info">
         Showing {showing} of {totalItems} practitioners
       </p>
 
-      <div className="flex gap-4">
+      <div className="pagination__pages">
         <button
           onClick={() => onPageChange?.(currentPage - 1)}
           disabled={currentPage === 1}
-          className="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors disabled:opacity-40"
+          className="pagination__btn"
         >
           Previous
         </button>
@@ -36,11 +35,7 @@ export default function Pagination({
           <button
             key={page}
             onClick={() => onPageChange?.(page)}
-            className={`text-xs font-bold transition-colors ${
-              page === currentPage
-                ? 'text-primary'
-                : 'text-on-surface-variant hover:text-primary'
-            }`}
+            className={`pagination__btn${page === currentPage ? ' pagination__btn--active' : ''}`}
           >
             {page}
           </button>
@@ -49,7 +44,7 @@ export default function Pagination({
         <button
           onClick={() => onPageChange?.(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors disabled:opacity-40"
+          className="pagination__btn"
         >
           Next
         </button>

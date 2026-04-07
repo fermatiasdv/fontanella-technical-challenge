@@ -12,12 +12,7 @@ interface ClientTableProps {
   onDeleteClient?: (client: ClientAPI) => void;
 }
 
-const TABLE_HEADERS = [
-  { label: 'Client Name' },
-  { label: 'Location' },
-  { label: 'Timezone' },
-  { label: '' },
-];
+const TABLE_HEADERS = ['Client Name', 'Location', 'Timezone', ''];
 
 export default function ClientTable({
   clients,
@@ -32,29 +27,22 @@ export default function ClientTable({
   const showing = Math.min(itemsPerPage, totalClients);
 
   return (
-    <div className="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-surface-container">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-surface-container-low">
+    <div className="client-table">
+      <div className="client-table__scroll" style={{ overflowX: 'auto' }}>
+        <table>
+          <thead className="client-table__head">
             <tr>
               {TABLE_HEADERS.map((h, i) => (
-                <th
-                  key={i}
-                  className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant border-b border-surface-container first:px-8 last:px-8"
-                >
-                  {h.label}
-                </th>
+                <th key={i} className="client-table__th">{h}</th>
               ))}
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-surface-container">
+          <tbody className="client-table__body">
             {clients.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-8 py-16 text-center text-on-surface-variant text-sm">
-                  <span className="material-symbols-outlined text-4xl block mb-3 text-outline">
-                    person_search
-                  </span>
+                <td colSpan={4} className="client-table__empty-cell">
+                  <span className="material-symbols-outlined">person_search</span>
                   No clients match your search.
                 </td>
               </tr>
@@ -74,29 +62,27 @@ export default function ClientTable({
       </div>
 
       {/* Pagination footer */}
-      <div className="px-8 py-4 bg-surface-container-low border-t border-surface-container flex justify-between items-center">
-        <span className="text-xs text-on-surface-variant">
-          Showing{' '}
-          <span className="font-bold text-on-surface">{showing}</span> of{' '}
-          <span className="font-bold text-on-surface">{totalClients}</span> clients
+      <div className="client-table__footer">
+        <span className="client-table__count">
+          Showing <strong>{showing}</strong> of <strong>{totalClients}</strong> clients
         </span>
 
-        <div className="flex gap-2">
+        <div className="client-table__pager">
           <button
             onClick={() => onPageChange?.(currentPage - 1)}
             disabled={currentPage <= 1}
-            className="p-1.5 rounded bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border border-surface-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="client-table__pager-btn"
             aria-label="Previous page"
           >
-            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+            <span className="material-symbols-outlined">chevron_left</span>
           </button>
           <button
             onClick={() => onPageChange?.(currentPage + 1)}
             disabled={currentPage >= totalPages}
-            className="p-1.5 rounded bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border border-surface-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="client-table__pager-btn"
             aria-label="Next page"
           >
-            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+            <span className="material-symbols-outlined">chevron_right</span>
           </button>
         </div>
       </div>
