@@ -18,10 +18,7 @@ export type UpdateLawyerDto = Partial<CreateLawyerDto>;
 
 export interface ActiveContext {
   lawyer: LawyerAPI;
-  title: string;
-  credentials: 'Verified' | 'Pending' | 'Revoked';
   appointments: number;
-  systemRole: 'Administrator' | 'Standard' | 'Read-Only';
 }
 
 export interface ScheduleConflict {

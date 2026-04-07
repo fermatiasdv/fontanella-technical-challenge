@@ -1,29 +1,17 @@
 import { useState } from 'react';
 import { useLawyers } from '../hooks/useLawyers';
-import type { LawyerAPI, ActiveContext, ScheduleConflict, CreateLawyerDto } from '../types/lawyer';
+import type { LawyerAPI, ActiveContext, CreateLawyerDto } from '../types/lawyer';
 
 import PageHeader from '../components/lawyers/PageHeader';
 import LawyerTable from '../components/lawyers/LawyerTable';
 import Pagination from '../components/lawyers/Pagination';
 import CreateLawyerModal from '../components/lawyers/CreateLawyerModal';
 import ActiveContextCard from '../components/sidebar/ActiveContextCard';
-import ScheduleConflictCard from '../components/sidebar/ScheduleConflictCard';
-import FAB from '../components/common/FAB';
-
-// ─── Static sidebar mock (will be replaced once those endpoints exist) ────────
-const MOCK_CONFLICT: ScheduleConflict = {
-  lawyerName: 'Mariana Rodriguez',
-  description: 'Potential hearing overlap.',
-  date: 'Oct 24th',
-};
 
 function buildActiveContext(lawyer: LawyerAPI): ActiveContext {
   return {
     lawyer,
-    title: 'Lead Trial Lawyer',     // TODO: derive from a roles endpoint
-    credentials: 'Verified',         // TODO: derive from backend
     appointments: 0,                 // TODO: derive from appointments endpoint
-    systemRole: 'Administrator',     // TODO: derive from backend
   };
 }
 
@@ -72,18 +60,24 @@ export default function LawyerManagementHome() {
     setCurrentPage,
     refetch,
     createLawyer,
+    updateLawyer,
     deleteLawyer,
   } = useLawyers();
 
   const [activeLawyerId, setActiveLawyerId] = useState<number | undefined>(undefined);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingLawyer, setEditingLawyer]         = useState<LawyerAPI | null>(null);
 
   const selectedLawyer =
     lawyers.find((l) => l.id_lawyer === activeLawyerId) ?? lawyers[0];
 
   const handleCreateLawyer = async (dto: CreateLawyerDto) => {
     await createLawyer(dto);
-    // The hook already updates the local list; modal closes itself on success
+  };
+
+  const handleEditLawyer = async (dto: CreateLawyerDto) => {
+    if (!editingLawyer) return;
+    await updateLawyer(editingLawyer.id_lawyer, dto);
   };
 
   const handleDeleteLawyer = async (lawyer: LawyerAPI) => {
@@ -113,7 +107,7 @@ export default function LawyerManagementHome() {
                 lawyers={lawyers}
                 activeLawyerId={activeLawyerId ?? lawyers[0]?.id_lawyer}
                 onSelectLawyer={(l) => setActiveLawyerId(l.id_lawyer)}
-                onEditLawyer={(l) => console.log('TODO: open Edit modal for', l.id_lawyer)}
+                onEditLawyer={(l) => setEditingLawyer(l)}
                 onDeleteLawyer={handleDeleteLawyer}
               />
             )}
@@ -136,24 +130,23 @@ export default function LawyerManagementHome() {
                 onRevoke={() => console.log('TODO: revoke access', selectedLawyer.id_lawyer)}
               />
             )}
-            <ScheduleConflictCard
-              conflict={MOCK_CONFLICT}
-              onResolve={() => console.log('TODO: open conflict resolution')}
-            />
           </div>
         </div>
       </main>
 
-      <FAB
-        onClick={() => setIsCreateModalOpen(true)}
-        icon="add"
-        label="New Lawyer"
-      />
-
+      {/* Create modal */}
       <CreateLawyerModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateLawyer}
+      />
+
+      {/* Edit modal — reuses the same component, pre-filled */}
+      <CreateLawyerModal
+        isOpen={editingLawyer !== null}
+        onClose={() => setEditingLawyer(null)}
+        onSubmit={handleEditLawyer}
+        initialLawyer={editingLawyer ?? undefined}
       />
     </>
   );

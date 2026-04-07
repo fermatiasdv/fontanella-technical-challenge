@@ -17,11 +17,9 @@ export default function SideNavBar() {
       {/* Logo */}
       <div className="mb-10 px-4">
         <h1 className="font-headline font-bold text-slate-900 text-lg tracking-tighter">
-          Lexis Legal
+          FONTANELLA SRL
         </h1>
-        <p className="font-headline text-xs font-medium tracking-tight text-slate-500">
-          Editorial Efficiency
-        </p>
+        
       </div>
 
       {/* Navigation Links */}

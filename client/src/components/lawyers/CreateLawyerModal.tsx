@@ -14,7 +14,7 @@
 
 import { useState, useCallback, useEffect} from 'react';
 import type { FormEvent } from 'react';
-import type { CreateLawyerDto } from '../../types/lawyer';
+import type { CreateLawyerDto, LawyerAPI } from '../../types/lawyer';
 
 // ─── Timezone options ─────────────────────────────────────────────────────────
 const TIMEZONE_OPTIONS = [
@@ -52,6 +52,8 @@ interface CreateLawyerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (dto: CreateLawyerDto) => Promise<void>;
+  /** When provided the modal opens in edit mode, pre-filled with this lawyer's data */
+  initialLawyer?: LawyerAPI;
 }
 
 // ─── Field sub-component ──────────────────────────────────────────────────────
@@ -120,20 +122,31 @@ const EMPTY_FORM: FormState = {
   timezone:    'America/Argentina/Buenos_Aires',
 };
 
-export default function CreateLawyerModal({ isOpen, onClose, onSubmit }: CreateLawyerModalProps) {
+export default function CreateLawyerModal({ isOpen, onClose, onSubmit, initialLawyer }: CreateLawyerModalProps) {
+  const isEditMode = Boolean(initialLawyer);
+
   const [form, setForm]         = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors]     = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Reset state when the modal opens
+  // Seed form when modal opens: pre-fill for edit, blank for create
   useEffect(() => {
     if (isOpen) {
-      setForm(EMPTY_FORM);
+      setForm(
+        initialLawyer
+          ? {
+              full_name:   initialLawyer.full_name,
+              national_id: initialLawyer.national_id,
+              location:    initialLawyer.location,
+              timezone:    initialLawyer.timezone,
+            }
+          : EMPTY_FORM,
+      );
       setErrors({});
       setSubmitError(null);
     }
-  }, [isOpen]);
+  }, [isOpen, initialLawyer]);
 
   // Close on Escape
   useEffect(() => {
@@ -198,13 +211,13 @@ export default function CreateLawyerModal({ isOpen, onClose, onSubmit }: CreateL
                 className="material-symbols-outlined text-white text-2xl"
                 style={{ fontVariationSettings: "'FILL' 1" }}
               >
-                person_add
+                {isEditMode ? 'edit' : 'person_add'}
               </span>
             </div>
             <div>
               <p className="all-caps-label text-primary font-bold mb-0.5">Management Portal</p>
               <h2 className="editorial-headline text-on-surface text-2xl font-extrabold">
-                New Practitioner
+                {isEditMode ? 'Edit Practitioner' : 'New Practitioner'}
               </h2>
             </div>
           </div>
@@ -326,8 +339,10 @@ export default function CreateLawyerModal({ isOpen, onClose, onSubmit }: CreateL
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-base">person_add</span>
-                    Add Practitioner
+                    <span className="material-symbols-outlined text-base">
+                      {isEditMode ? 'save' : 'person_add'}
+                    </span>
+                    {isEditMode ? 'Save Changes' : 'Add Practitioner'}
                   </>
                 )}
               </button>
