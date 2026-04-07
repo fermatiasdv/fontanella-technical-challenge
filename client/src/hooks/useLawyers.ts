@@ -28,7 +28,7 @@ export interface UseLawyersResult {
   /** Re-fetch the full list from the server */
   refetch: () => void;
   /** CRUD mutations — each returns a Promise so callers can await */
-  createLawyer: (dto: CreateLawyerDto) => Promise<void>;
+  createLawyer: (dto: CreateLawyerDto) => Promise<LawyerAPI>;
   updateLawyer: (id: number, dto: UpdateLawyerDto) => Promise<void>;
   deleteLawyer: (id: number) => Promise<void>;
 }
@@ -78,11 +78,12 @@ export function useLawyers(): UseLawyersResult {
   const lawyers = allLawyers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   // ─── Mutations ────────────────────────────────────────────────────────────
-  const createLawyer = useCallback(async (dto: CreateLawyerDto) => {
+  const createLawyer = useCallback(async (dto: CreateLawyerDto): Promise<LawyerAPI> => {
     const created = await lawyersApi.create(dto);
     setAllLawyers((prev) =>
       [...prev, created].sort((a, b) => a.full_name.localeCompare(b.full_name)),
     );
+    return created;
   }, []);
 
   const updateLawyer = useCallback(async (id: number, dto: UpdateLawyerDto) => {
