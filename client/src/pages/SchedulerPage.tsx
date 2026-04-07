@@ -732,7 +732,7 @@ export default function SchedulerPage() {
                           <div key={offset + 'h'} className="half-hour-divider" style={{ top: offset + HOUR_HEIGHT_PX / 2 }} />
                         ))}
 
-                        {/* Working slot block */}
+                        {/* Working slot block 
                         {slot && (
                           <div
                             className="slot-block"
@@ -749,7 +749,7 @@ export default function SchedulerPage() {
                               </span>
                             )}
                           </div>
-                        )}
+                        )}*/}
 
                         {/* Appointment blocks for this calendar day */}
                         {!apptLoading && dayAppts.map((appt) => {

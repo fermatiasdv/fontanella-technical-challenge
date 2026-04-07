@@ -1,20 +1,15 @@
 import { useState } from 'react';
 import { useLawyers } from '../hooks/useLawyers';
 import { contactApi } from '../api/contact';
-import type { LawyerAPI, ActiveContext, CreateLawyerDto } from '../types/lawyer';
-import type { ContactMethodInput } from '../components/common/ContactMethodsSection';
+import { workingScheduleApi } from '../api/workingSchedule';
+import { vacationsApi } from '../api/vacations';
+import type { LawyerAPI, CreateLawyerDto, ScheduleSlotInput, VacationInput } from '../types/lawyer';
+import type { ContactMethodInputI } from '../components/common/ContactMethodsSection';
 
 import PageHeader from '../components/lawyers/PageHeader';
 import LawyerTable from '../components/lawyers/LawyerTable';
 import Pagination from '../components/lawyers/Pagination';
 import CreateLawyerModal from '../components/lawyers/CreateLawyerModal';
-
-function buildActiveContext(lawyer: LawyerAPI): ActiveContext {
-  return {
-    lawyer,
-    appointments: 0,
-  };
-}
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 function TableSkeleton() {
@@ -56,14 +51,48 @@ export default function LawyerManagementHome() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingLawyer, setEditingLawyer]         = useState<LawyerAPI | null>(null);
 
-  const selectedLawyer =
-    lawyers.find((l) => l.id_lawyer === activeLawyerId) ?? lawyers[0];
+  const handleCreateLawyer = async (
+    dto:       CreateLawyerDto,
+    contacts:  ContactMethodInputI[],
+    schedule:  ScheduleSlotInput[],
+    vacations: VacationInput[],
+  ) => {
+    // 1. Create the lawyer record and get its generated ID
+    const created = await createLawyer(dto);
 
-  const handleCreateLawyer = async (dto: CreateLawyerDto) => {
-    await createLawyer(dto);
+    // 2. Save contact methods
+    if (contacts.length > 0) {
+      await Promise.all(
+        contacts.map((c, idx) =>
+          contactApi.create({
+            idLawyer:   created.id_lawyer,
+            methodType: c.method_type,
+            value:      c.value,
+            isDefault:  idx === 0,
+          }),
+        ),
+      );
+    }
+
+    // 3. Save working schedule (T_WORKING_SCHEDULE)
+    if (schedule.length > 0) {
+      await workingScheduleApi.upsertSlots(created.id_lawyer, schedule);
+    }
+
+    // 4. Save vacation periods (T_VACATIONS)
+    if (vacations.length > 0) {
+      await Promise.all(
+        vacations.map((v) =>
+          vacationsApi.addVacation(created.id_lawyer, {
+            startDate: v.startDate,
+            endDate:   v.endDate,
+          }),
+        ),
+      );
+    }
   };
 
-  const handleEditLawyer = async (dto: CreateLawyerDto, contacts: ContactMethodInput[]) => {
+  const handleEditLawyer = async (dto: CreateLawyerDto, contacts: ContactMethodInputI[]) => {
     if (!editingLawyer) return;
     const id = editingLawyer.id_lawyer;
     await updateLawyer(id, dto);

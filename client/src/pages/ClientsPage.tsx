@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useClients } from '../hooks/useClients';
 import type { ClientAPI, CreateClientDto } from '../types/client';
 import { contactApi } from '../api/contact';
-import type { ContactMethodInput } from '../components/clients/AddClientModal';
+import type { ContactMethodInputI } from '../components/common/ContactMethodsSection';
 
 import ClientsPageHeader from '../components/clients/ClientsPageHeader';
 import ClientSearchBar   from '../components/clients/ClientSearchBar';
@@ -55,7 +55,7 @@ export default function ClientsPage() {
 
   const handleCreateClient = async (
     dto: CreateClientDto,
-    contacts: ContactMethodInput[],
+    contacts: ContactMethodInputI[],
   ) => {
     const created = await createClient(dto);
     for (const contact of contacts) {

@@ -1,17 +1,26 @@
 /**
  * CreateLawyerModal — create & edit mode
+ *
+ * In CREATE mode: also collects working schedule (entry/exit time + active days)
+ * and vacation periods, which are saved to T_WORKING_SCHEDULE and T_VACATIONS
+ * after the lawyer record is created.
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import type { FormEvent } from 'react';
-import type { CreateLawyerDto, LawyerAPI } from '../../types/lawyer';
+import type {
+  CreateLawyerDto,
+  LawyerAPI,
+  ScheduleSlotInput,
+  VacationInput,
+} from '../../types/lawyer';
 import { contactApi } from '../../api/contact';
 import type { MethodType } from '../../api/contact';
 import ContactMethodsSection, {
   EMPTY_CONTACTS,
   getActiveContacts,
 } from '../common/ContactMethodsSection';
-import type { ContactMethodInput, ContactsState } from '../common/ContactMethodsSection';
+import type { ContactMethodInputI, ContactsState } from '../common/ContactMethodsSection';
 
 // ─── Timezone options ─────────────────────────────────────────────────────────
 const TIMEZONE_OPTIONS = [
@@ -32,6 +41,17 @@ const TIMEZONE_OPTIONS = [
   { value: 'UTC',                            label: 'UTC (Universal, UTC+0)' },
 ];
 
+// ─── Days of week ─────────────────────────────────────────────────────────────
+const DAYS = [
+  { key: 'Monday',    short: 'Lu' },
+  { key: 'Tuesday',   short: 'Ma' },
+  { key: 'Wednesday', short: 'Mi' },
+  { key: 'Thursday',  short: 'Ju' },
+  { key: 'Friday',    short: 'Vi' },
+  { key: 'Saturday',  short: 'Sá' },
+  { key: 'Sunday',    short: 'Do' },
+];
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FormState {
@@ -48,20 +68,47 @@ interface FormErrors {
   timezone?:    string;
 }
 
+interface ScheduleState {
+  startTime:  string;   // "HH:mm"
+  endTime:    string;   // "HH:mm"
+  activeDays: string[]; // e.g. ['Monday','Tuesday',...]
+}
+
+interface VacationRow {
+  id:        string;
+  startDate: string; // "YYYY-MM-DD"
+  endDate:   string; // "YYYY-MM-DD"
+}
+
 interface CreateLawyerModalProps {
   isOpen:         boolean;
   onClose:        () => void;
-  onSubmit:       (dto: CreateLawyerDto, contacts: ContactMethodInput[]) => Promise<void>;
+  /**
+   * schedule and vacations are only sent in create mode.
+   * In edit mode the arrays are empty.
+   */
+  onSubmit: (
+    dto:       CreateLawyerDto,
+    contacts:  ContactMethodInputI[],
+    schedule:  ScheduleSlotInput[],
+    vacations: VacationInput[],
+  ) => Promise<void>;
   initialLawyer?: LawyerAPI;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Defaults ─────────────────────────────────────────────────────────────────
 
 const EMPTY_FORM: FormState = {
   full_name:   '',
   national_id: '',
   location:    '',
   timezone:    'America/Argentina/Buenos_Aires',
+};
+
+const EMPTY_SCHEDULE: ScheduleState = {
+  startTime:  '09:00',
+  endTime:    '18:00',
+  activeDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
 };
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -110,6 +157,169 @@ function Field({ label, icon, error, children }: FieldProps) {
   );
 }
 
+// ── Schedule section ──────────────────────────────────────────────────────────
+
+interface ScheduleSectionProps {
+  schedule:  ScheduleState;
+  onChange:  (s: ScheduleState) => void;
+}
+
+function ScheduleSection({ schedule, onChange }: ScheduleSectionProps) {
+  const toggleDay = (day: string) => {
+    const active = schedule.activeDays.includes(day);
+    onChange({
+      ...schedule,
+      activeDays: active
+        ? schedule.activeDays.filter((d) => d !== day)
+        : [...schedule.activeDays, day],
+    });
+  };
+
+  return (
+    <div className="section-card">
+      <div className="section-card__header">
+        <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>
+          schedule
+        </span>
+        Horario de trabajo
+        <span style={{ marginLeft: 'auto', fontWeight: 400, textTransform: 'none', letterSpacing: 'normal', opacity: 0.6 }}>
+          Opcional
+        </span>
+      </div>
+      <div className="section-card__body">
+        {/* Entry / Exit times */}
+        <div className="form-grid-2">
+          <div className="form-field">
+            <label className="form-field__label">
+              <span className="material-symbols-outlined">login</span>
+              Entrada
+            </label>
+            <input
+              type="time"
+              className="form-input"
+              min="06:00"
+              max="22:00"
+              value={schedule.startTime}
+              onChange={(e) => onChange({ ...schedule, startTime: e.target.value })}
+            />
+          </div>
+          <div className="form-field">
+            <label className="form-field__label">
+              <span className="material-symbols-outlined">logout</span>
+              Salida
+            </label>
+            <input
+              type="time"
+              className="form-input"
+              min="06:00"
+              max="22:00"
+              value={schedule.endTime}
+              onChange={(e) => onChange({ ...schedule, endTime: e.target.value })}
+            />
+          </div>
+        </div>
+
+        {/* Day pills */}
+        <div>
+          <p className="form-field__label" style={{ marginBottom: '0.5rem' }}>
+            <span className="material-symbols-outlined">calendar_month</span>
+            Días activos
+          </p>
+          <div className="day-pills">
+            {DAYS.map(({ key, short }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => toggleDay(key)}
+                title={key}
+                className={`day-pill${schedule.activeDays.includes(key) ? ' day-pill--active' : ''}`}
+              >
+                {short}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Vacations section ─────────────────────────────────────────────────────────
+
+interface VacationsSectionProps {
+  rows:     VacationRow[];
+  onAdd:    () => void;
+  onRemove: (id: string) => void;
+  onChange: (id: string, field: 'startDate' | 'endDate', value: string) => void;
+}
+
+function VacationsSection({ rows, onAdd, onRemove, onChange }: VacationsSectionProps) {
+  return (
+    <div className="section-card">
+      <div className="section-card__header">
+        <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>
+          beach_access
+        </span>
+        Vacaciones
+        <span style={{ marginLeft: 'auto', fontWeight: 400, textTransform: 'none', letterSpacing: 'normal', opacity: 0.6 }}>
+          Opcional
+        </span>
+        <button type="button" className="btn-add-row" onClick={onAdd} style={{ marginLeft: '0.5rem' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>add</span>
+          Agregar
+        </button>
+      </div>
+      <div className="section-card__body">
+        {rows.length === 0 ? (
+          <p className="vacation-empty">Sin períodos de vacaciones cargados.</p>
+        ) : (
+          <div className="vacation-rows">
+            {rows.map((row) => (
+              <div key={row.id} className="vacation-row">
+                <div className="form-field">
+                  <label className="form-field__label">
+                    <span className="material-symbols-outlined">event</span>
+                    Desde
+                  </label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={row.startDate}
+                    onChange={(e) => onChange(row.id, 'startDate', e.target.value)}
+                  />
+                </div>
+                <div className="form-field">
+                  <label className="form-field__label">
+                    <span className="material-symbols-outlined">event</span>
+                    Hasta
+                  </label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={row.endDate}
+                    min={row.startDate || undefined}
+                    onChange={(e) => onChange(row.id, 'endDate', e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn-remove-row"
+                  onClick={() => onRemove(row.id)}
+                  title="Eliminar período"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
+                    close
+                  </span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 export default function CreateLawyerModal({
@@ -127,12 +337,18 @@ export default function CreateLawyerModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loadingContacts, setLoadingContacts] = useState(false);
 
+  // Schedule & vacations state — only used in create mode
+  const [schedule, setSchedule]       = useState<ScheduleState>(EMPTY_SCHEDULE);
+  const [vacationRows, setVacationRows] = useState<VacationRow[]>([]);
+
+  // ── Reset state when modal opens/closes ──────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     setErrors({});
     setSubmitError(null);
 
     if (initialLawyer) {
+      // Edit mode: populate existing lawyer data
       setForm({
         full_name:   initialLawyer.full_name,
         national_id: initialLawyer.national_id,
@@ -153,11 +369,15 @@ export default function CreateLawyerModal({
         .catch(() => {})
         .finally(() => setLoadingContacts(false));
     } else {
+      // Create mode: reset everything
       setForm(EMPTY_FORM);
       setContacts(EMPTY_CONTACTS);
+      setSchedule(EMPTY_SCHEDULE);
+      setVacationRows([]);
     }
   }, [isOpen, initialLawyer]);
 
+  // ── Keyboard: Escape to close ────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -165,6 +385,7 @@ export default function CreateLawyerModal({
     return () => window.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
+  // ── Field handlers ───────────────────────────────────────────────────────────
   const setField = useCallback(
     (field: keyof FormState) =>
       (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -185,6 +406,28 @@ export default function CreateLawyerModal({
     setContacts((prev) => ({ ...prev, [type]: { ...prev[type], value } }));
   }, []);
 
+  // ── Vacation row handlers ────────────────────────────────────────────────────
+  const handleAddVacation = useCallback(() => {
+    setVacationRows((prev) => [
+      ...prev,
+      { id: `vac-${Date.now()}`, startDate: '', endDate: '' },
+    ]);
+  }, []);
+
+  const handleRemoveVacation = useCallback((id: string) => {
+    setVacationRows((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  const handleVacationChange = useCallback(
+    (id: string, field: 'startDate' | 'endDate', value: string) => {
+      setVacationRows((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
+      );
+    },
+    [],
+  );
+
+  // ── Derived ──────────────────────────────────────────────────────────────────
   const activeContacts  = getActiveContacts(contacts);
   const hasValidContact = activeContacts.length > 0;
   const canSubmit       = hasValidContact && !submitting && !loadingContacts;
@@ -192,11 +435,31 @@ export default function CreateLawyerModal({
   const initials = form.full_name
     .trim().split(/\s+/).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
 
+  // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const validation = validate(form);
     if (Object.keys(validation).length > 0) { setErrors(validation); return; }
     if (!isEditMode && !hasValidContact) return;
+
+    // Build schedule slots (only when both times and at least one day are set)
+    const scheduleSlots: ScheduleSlotInput[] = [];
+    if (!isEditMode && schedule.activeDays.length > 0 && schedule.startTime && schedule.endTime) {
+      schedule.activeDays.forEach((day) => {
+        scheduleSlots.push({
+          dayOfWeek: day,
+          startTime: `${schedule.startTime}:00`,
+          endTime:   `${schedule.endTime}:00`,
+        });
+      });
+    }
+
+    // Build vacation inputs (only complete rows)
+    const vacationInputs: VacationInput[] = isEditMode
+      ? []
+      : vacationRows
+          .filter((r) => r.startDate && r.endDate)
+          .map((r) => ({ startDate: r.startDate, endDate: r.endDate }));
 
     setSubmitting(true);
     setSubmitError(null);
@@ -209,6 +472,8 @@ export default function CreateLawyerModal({
           timezone:    form.timezone,
         },
         activeContacts,
+        scheduleSlots,
+        vacationInputs,
       );
       onClose();
     } catch (err) {
@@ -328,6 +593,21 @@ export default function CreateLawyerModal({
                 onToggle={toggleMethod}
                 onValueChange={setMethodValue}
                 activeCount={activeContacts.length}
+              />
+            )}
+
+            {/* ── Working Schedule (create mode only) ──────────────────────── */}
+            {!isEditMode && (
+              <ScheduleSection schedule={schedule} onChange={setSchedule} />
+            )}
+
+            {/* ── Vacations (create mode only) ─────────────────────────────── */}
+            {!isEditMode && (
+              <VacationsSection
+                rows={vacationRows}
+                onAdd={handleAddVacation}
+                onRemove={handleRemoveVacation}
+                onChange={handleVacationChange}
               />
             )}
 

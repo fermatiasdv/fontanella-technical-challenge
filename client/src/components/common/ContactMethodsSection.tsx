@@ -5,7 +5,7 @@
 import type { MethodType } from '../../api/contact';
 
 // ─── Type for a contact method to be sent to the API ─────────────────────────
-export interface ContactMethodInput {
+export interface ContactMethodInputI {
   method_type: MethodType;
   value:       string;
   is_default:  boolean;
@@ -53,7 +53,7 @@ export const EMPTY_CONTACTS: ContactsState = {
   PhoneCall: { enabled: false, value: '' },
 };
 
-export function getActiveContacts(contacts: ContactsState): ContactMethodInput[] {
+export function getActiveContacts(contacts: ContactsState): ContactMethodInputI[] {
   return METHOD_CONFIGS
     .filter((m) => contacts[m.type].enabled && contacts[m.type].value.trim())
     .map((m, index) => ({

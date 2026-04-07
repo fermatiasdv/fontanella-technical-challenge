@@ -6,14 +6,13 @@ import { useState, useCallback, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import type { CreateClientDto } from '../../types/client';
 import type { MethodType } from '../../api/contact';
+import type { ContactMethodInputI } from '../common/ContactMethodsSection';
 import ContactMethodsSection, {
   EMPTY_CONTACTS,
   getActiveContacts,
 } from '../common/ContactMethodsSection';
 import type { ContactsState } from '../common/ContactMethodsSection';
 
-// ─── Re-export so other files still work ─────────────────────────────────────
-export type { ContactMethodInput } from '../common/ContactMethodsSection';
 
 // ─── Timezone options ─────────────────────────────────────────────────────────
 const TIMEZONE_OPTIONS = [
@@ -53,7 +52,7 @@ interface FormErrors {
 export interface AddClientModalProps {
   isOpen:   boolean;
   onClose:  () => void;
-  onSubmit: (dto: CreateClientDto, contacts: ContactMethodInput[]) => Promise<void>;
+  onSubmit: (dto: CreateClientDto, contacts: ContactMethodInputI[]) => Promise<void>;
 }
 
 const EMPTY_FORM: FormState = {
