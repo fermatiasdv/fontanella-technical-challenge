@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useClients } from '@/features/clients/hooks/useClients';
-import { createClientWithContacts } from '@/features/clients/services/clientService';
+import { createClientWithContacts, updateClientWithContacts } from '@/features/clients/services/clientService';
 import { ClientsPageHeader } from '@/features/clients/components/ClientsPageHeader';
 import { ClientSearchBar }   from '@/features/clients/components/ClientSearchBar';
 import { ClientTable }       from '@/features/clients/components/ClientTable';
@@ -18,11 +18,19 @@ export function ClientManagement() {
   } = useClients();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingClient,  setEditingClient]  = useState<ClientAPI | null>(null);
 
   const handleCreate: React.ComponentProps<typeof AddClientModal>['onSubmit'] = async (dto, contacts) => {
     await createClientWithContacts(dto, contacts);
     refetch();
     swal.success('Cliente creado correctamente');
+  };
+
+  const handleEditFull: React.ComponentProps<typeof AddClientModal>['onSubmit'] = async (dto, contacts) => {
+    if (!editingClient) return;
+    await updateClientWithContacts(editingClient.id_client, dto, contacts);
+    refetch();
+    swal.success('Cliente actualizado correctamente');
   };
 
   const handleDelete = async (client: ClientAPI) => {
@@ -53,7 +61,7 @@ export function ClientManagement() {
             totalPages={totalPages}
             itemsPerPage={4}
             onPageChange={setCurrentPage}
-            onEditClient={(c) => console.log('TODO: open Edit modal for', c.id_client)}
+            onEditClient={(c) => setEditingClient(c)}
             onDeleteClient={handleDelete}
           />
         )}
@@ -63,6 +71,13 @@ export function ClientManagement() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSubmit={handleCreate}
+      />
+
+      <AddClientModal
+        isOpen={editingClient !== null}
+        onClose={() => setEditingClient(null)}
+        onSubmit={handleEditFull}
+        initialClient={editingClient ?? undefined}
       />
     </>
   );

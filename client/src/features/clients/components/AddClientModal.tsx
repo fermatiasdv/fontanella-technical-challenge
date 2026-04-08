@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import type { CreateClientDto } from '@/features/clients/types/client.types';
+import type { ClientAPI } from '@/features/clients/types/client.types';
 import type { MethodType } from '@/shared/types/common.types';
+import { contactService } from '@/services/contact.service';
 import {
   ContactMethodsSection,
   EMPTY_CONTACTS,
@@ -31,9 +33,10 @@ interface FormState { company_id: string; trade_name: string; location: string; 
 interface FormErrors { company_id?: string; trade_name?: string; location?: string; timezone?: string; }
 
 export interface AddClientModalProps {
-  isOpen:   boolean;
-  onClose:  () => void;
-  onSubmit: (dto: CreateClientDto, contacts: ReturnType<typeof getActiveContacts>) => Promise<void>;
+  isOpen:         boolean;
+  onClose:        () => void;
+  onSubmit:       (dto: CreateClientDto, contacts: ReturnType<typeof getActiveContacts>) => Promise<void>;
+  initialClient?: ClientAPI;
 }
 
 const EMPTY_FORM: FormState = { company_id: '', trade_name: '', location: '', timezone: 'America/Argentina/Buenos_Aires' };
@@ -58,7 +61,8 @@ function Field({ label, icon, error, children }: { label: string; icon: string; 
   );
 }
 
-export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProps) {
+export function AddClientModal({ isOpen, onClose, onSubmit, initialClient }: AddClientModalProps) {
+  const isEditMode = Boolean(initialClient);
   const [form, setForm]               = useState<FormState>(EMPTY_FORM);
   const [contacts, setContacts]       = useState<ContactsState>(EMPTY_CONTACTS);
   const [errors, setErrors]           = useState<FormErrors>({});
@@ -66,8 +70,38 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) { setForm(EMPTY_FORM); setContacts(EMPTY_CONTACTS); setErrors({}); setSubmitError(null); }
-  }, [isOpen]);
+    if (!isOpen) return;
+    setErrors({});
+    setSubmitError(null);
+    if (initialClient) {
+      setForm({
+        company_id: initialClient.company_id,
+        trade_name: initialClient.trade_name,
+        location:   initialClient.location,
+        timezone:   initialClient.timezone,
+      });
+      // Load existing contacts and map them to ContactsState
+      contactService
+        .listByClient(initialClient.id_client)
+        .then((apiContacts) => {
+          const state: ContactsState = {
+            InPerson:  { enabled: false, value: '' },
+            VideoCall: { enabled: false, value: '' },
+            PhoneCall: { enabled: false, value: '' },
+          };
+          for (const c of apiContacts) {
+            const type = c.method_type as MethodType;
+            state[type] = { enabled: true, value: c.value };
+          }
+          setContacts(state);
+        })
+        .catch(() => setContacts(EMPTY_CONTACTS));
+    } else {
+      setForm(EMPTY_FORM);
+      setContacts(EMPTY_CONTACTS);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialClient]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -121,11 +155,11 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{ width: '3rem', height: '3rem', background: 'linear-gradient(135deg, var(--c-primary), var(--c-primary-container))', borderRadius: 'var(--r-xl)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span className="material-symbols-outlined" style={{ color: 'white', fontSize: '1.5rem', fontVariationSettings: "'FILL' 1" }}>domain_add</span>
+              <span className="material-symbols-outlined" style={{ color: 'white', fontSize: '1.5rem', fontVariationSettings: "'FILL' 1" }}>{isEditMode ? 'edit' : 'domain_add'}</span>
             </div>
             <div>
               <p className="eyebrow" style={{ color: 'var(--c-primary)', marginBottom: '0.125rem' }}>Client Management</p>
-              <h2 style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--c-on-surface)', fontSize: '1.5rem', letterSpacing: '-0.02em' }}>New Client</h2>
+              <h2 style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--c-on-surface)', fontSize: '1.5rem', letterSpacing: '-0.02em' }}>{isEditMode ? 'Edit Client' : 'New Client'}</h2>
             </div>
           </div>
           <button onClick={onClose} className="btn-icon" aria-label="Close"><span className="material-symbols-outlined">close</span></button>
@@ -163,7 +197,11 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
               <button type="submit" disabled={!canSubmit} title={!hasValidContact ? 'Add at least one contact method' : undefined} className="btn-primary">
-                {submitting ? <><span className="material-symbols-outlined anim-spin">progress_activity</span>Saving…</> : <><span className="material-symbols-outlined">domain_add</span>Add Client</>}
+                {submitting
+                  ? <><span className="material-symbols-outlined anim-spin">progress_activity</span>Saving…</>
+                  : isEditMode
+                    ? <><span className="material-symbols-outlined">save</span>Save Changes</>
+                    : <><span className="material-symbols-outlined">domain_add</span>Add Client</>}
               </button>
             </div>
           </div>

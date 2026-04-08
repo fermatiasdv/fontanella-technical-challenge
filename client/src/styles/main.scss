@@ -3,23 +3,23 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // 1. Design tokens (CSS custom properties)
-@import 'tokens';
+@use 'tokens';
 
 // 2. Global base / reset
-@import 'base';
+@use 'base';
 
 // 3. Keyframe animations
-@import 'animations';
+@use 'animations';
 
 // 4. Shared primitives (buttons, forms, modals, etc.)
-@import 'shared';
+@use 'shared';
 
 // 5. Component styles
-@import 'components/layout';
-@import 'components/page-header';
-@import 'components/tables';
-@import 'components/contact-methods';
-@import 'components/search-bar';
-@import 'components/active-context';
-@import 'components/scheduler';
-@import 'components/appointments';
+@use 'components/layout';
+@use 'components/page-header';
+@use 'components/tables';
+@use 'components/contact-methods';
+@use 'components/search-bar';
+@use 'components/active-context';
+@use 'components/scheduler';
+@use 'components/appointments';
