@@ -1,5 +1,4 @@
 import SideNavBar from './components/layout/SideNavBar';
-import TopAppBar from './components/layout/TopAppBar';
 import LawyerManagementHome from './pages/LawyerManagementHome';
 import ClientsPage from './pages/ClientsPage';
 import SchedulerPage from './pages/SchedulerPage';
@@ -16,7 +15,6 @@ export default function App() {
   return (
     <div className="app-root">
       <SideNavBar activePage={ACTIVE_PAGE} />
-      <TopAppBar />
       {ACTIVE_PAGE === 'clients'      ? <ClientsPage />          :
        ACTIVE_PAGE === 'scheduler'    ? <SchedulerPage />         :
        ACTIVE_PAGE === 'appointments' ? <AppointmentsPage />      :

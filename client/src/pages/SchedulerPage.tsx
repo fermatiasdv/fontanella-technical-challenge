@@ -7,6 +7,8 @@ import { useWorkingSchedule } from '../hooks/useWorkingSchedule';
 import type { WorkingScheduleAPI } from '../hooks/useWorkingSchedule';
 import { useAppointments } from '../hooks/useAppointments';
 import type { AppointmentAPI } from '../types/appointment';
+import { vacationsApi } from '../api/vacations';
+import type { VacationAPI } from '../api/vacations';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -170,6 +172,19 @@ function formatApptTime(iso: string): string {
   const per = h < 12 ? 'AM' : 'PM';
   const h12 = h % 12 || 12;
   return `${h12}:${m.toString().padStart(2, '0')} ${per}`;
+}
+
+// ─── Vacation / availability helpers ─────────────────────────────────────────
+
+/** Returns the date as "YYYY-MM-DD" using local time (matches VacationAPI format). */
+function toDateStr(date: Date): string {
+  return date.toLocaleDateString('en-CA'); // "YYYY-MM-DD"
+}
+
+/** Returns true when the given calendar date falls inside any vacation period. */
+function isVacationDay(vacations: VacationAPI[], date: Date): boolean {
+  const d = toDateStr(date);
+  return vacations.some((v) => d >= v.start_date && d <= v.end_date);
 }
 
 // ─── Slot Form Modal ──────────────────────────────────────────────────────────
@@ -541,6 +556,19 @@ export default function SchedulerPage() {
   // ── Appointments for the current week ─────────────────────────────────────
   const { appointments, loading: apptLoading } = useAppointments();
 
+  // ── Vacations for the selected lawyer ──────────────────────────────────────
+  const [vacations, setVacations] = useState<VacationAPI[]>([]);
+
+  useEffect(() => {
+    if (selectedLawyerId === null) { setVacations([]); return; }
+    const controller = new AbortController();
+    vacationsApi
+      .getByLawyer(selectedLawyerId, controller.signal)
+      .then((data) => { if (!controller.signal.aborted) setVacations(data); })
+      .catch(() => { /* non-critical */ });
+    return () => controller.abort();
+  }, [selectedLawyerId]);
+
   const [drawerSlot, setDrawerSlot] = useState<WorkingScheduleAPI | null>(null);
   const [formOpen,   setFormOpen]   = useState(false);
   const [editSlot,   setEditSlot]   = useState<WorkingScheduleAPI | null>(null);
@@ -628,13 +656,6 @@ export default function SchedulerPage() {
                 onSelect={selectLawyer}
                 loading={lawyersLoading}
               />
-              <button
-                onClick={() => { setPrefillDay(DAYS_EN[0]!); setEditSlot(null); setFormOpen(true); }}
-                className="btn-primary"
-              >
-                <span className="material-symbols-outlined">add</span>
-                Add Slot
-              </button>
             </div>
           </section>
 
@@ -661,14 +682,15 @@ export default function SchedulerPage() {
             <div className="calendar-grid__day-headers">
               <div className="calendar-grid__day-head-spacer" />
               {DAYS_EN.map((day, i) => {
-                const isWeekend  = i >= 5;
-                const hasSlot    = !!slotByDay[day];
-                const dateObj    = weekDates[i]!;
-                const isToday    = isSameDay(dateObj, today);
-                const dayNum     = dateObj.getDate();
+                const isWeekend    = i >= 5;
+                const hasSlot      = !!slotByDay[day];
+                const dateObj      = weekDates[i]!;
+                const isToday      = isSameDay(dateObj, today);
+                const dayNum       = dateObj.getDate();
+                const isUnavailable = !hasSlot || isVacationDay(vacations, dateObj);
 
                 return (
-                  <div key={day} className={`calendar-grid__day-head${isWeekend ? ' calendar-grid__day-head--weekend' : ''}${isToday ? ' calendar-grid__day-head--today' : ''}`}>
+                  <div key={day} className={`calendar-grid__day-head${isWeekend ? ' calendar-grid__day-head--weekend' : ''}${isToday ? ' calendar-grid__day-head--today' : ''}${isUnavailable ? ' calendar-grid__day-head--unavailable' : ''}`}>
                     <span className={`calendar-grid__day-short${hasSlot ? ' calendar-grid__day-short--active' : ''}${isToday ? ' calendar-grid__day-short--today' : ''}`}>
                       {DAYS_SHORT[i]}
                     </span>
@@ -701,9 +723,10 @@ export default function SchedulerPage() {
 
                   {/* Day columns */}
                   {DAYS_EN.map((day, dayIdx) => {
-                    const isWeekend = dayIdx >= 5;
-                    const slot      = slotByDay[day];
-                    const dateObj   = weekDates[dayIdx]!;
+                    const isWeekend    = dayIdx >= 5;
+                    const slot         = slotByDay[day];
+                    const dateObj      = weekDates[dayIdx]!;
+                    const isUnavailable = !slot || isVacationDay(vacations, dateObj);
 
                     const slotTopPx    = slot ? minToTopPx(timeToMin(slot.start_time)) : 0;
                     const slotHeightPx = slot ? Math.max(minToHeightPx(timeToMin(slot.end_time) - timeToMin(slot.start_time)), 32) : 0;
@@ -716,8 +739,8 @@ export default function SchedulerPage() {
                     return (
                       <div
                         key={day}
-                        className={`day-col${isWeekend ? ' day-col--weekend' : ''}`}
-                        onClick={(e) => {
+                        className={`day-col${isWeekend ? ' day-col--weekend' : ''}${isUnavailable ? ' day-col--unavailable' : ''}`}
+                        onClick={isUnavailable ? undefined : (e) => {
                           if (slot) return;
                           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                           openCreateForDay(day, e.clientY, rect.top, gridScrollRef.current?.scrollTop ?? 0);
@@ -775,15 +798,6 @@ export default function SchedulerPage() {
                           );
                         })}
 
-                        {/* Empty hint on hover */}
-                        {!slot && !isWeekend && (
-                          <div className="slot-block-hint">
-                            <div className="slot-block-hint__pill">
-                              <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>add</span>
-                              <span>Add slot</span>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -803,8 +817,8 @@ export default function SchedulerPage() {
               <span className="scheduler-legend__label">Appointment</span>
             </div>
             <div className="scheduler-legend__item">
-              <div className="scheduler-legend__swatch-empty" />
-              <span className="scheduler-legend__label">No slot (click to add)</span>
+              <div className="scheduler-legend__swatch-unavailable" />
+              <span className="scheduler-legend__label">No disponible</span>
             </div>
             <span className="scheduler-legend__hint">
               Click a slot to view / edit / delete &nbsp;·&nbsp; Click an empty day to add

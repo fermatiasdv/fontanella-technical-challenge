@@ -524,23 +524,17 @@ function AppointmentFormModal({
               ) : (
                 <div className="contact-method-list">
                   {commonMethods.map(({ methodType, lawyerContact }) => (
-                    <label
+                    <button
                       key={methodType}
+                      type="button"
+                      onClick={() => setSelectedContactId(lawyerContact.id_contact)}
                       className={`contact-method-option${selectedContactId === lawyerContact.id_contact ? ' contact-method-option--selected' : ''}`}
                     >
-                      <input
-                        type="radio"
-                        name="contactMethod"
-                        value={lawyerContact.id_contact}
-                        checked={selectedContactId === lawyerContact.id_contact}
-                        onChange={() => setSelectedContactId(lawyerContact.id_contact)}
-                        style={{ display: 'none' }}
-                      />
                       <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
                         {METHOD_ICON[methodType]}
                       </span>
                       <span>{METHOD_LABEL[methodType]}</span>
-                    </label>
+                    </button>
                   ))}
                 </div>
               )}

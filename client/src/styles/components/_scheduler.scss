@@ -143,6 +143,10 @@
 
     &--weekend { opacity: 0.5; }
 
+    &--unavailable {
+      opacity: 0.45;
+    }
+
     &--today {
       position: relative;
 
@@ -248,6 +252,25 @@
     cursor: pointer;
 
     &--weekend { background-color: rgba(243, 244, 245, 0.2); }
+
+    &--unavailable {
+      background-color: rgba(209, 211, 217, 0.32);
+      background-image: repeating-linear-gradient(
+        -45deg,
+        transparent 0px,
+        transparent 6px,
+        rgba(180, 183, 192, 0.14) 6px,
+        rgba(180, 183, 192, 0.14) 11px
+      );
+      cursor: not-allowed;
+
+      // Appt blocks inside unavailable cols keep their look but lose pointer
+      & .appt-block {
+        opacity: 0.55;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+    }
   }
 
   & .hour-divider {
@@ -414,6 +437,20 @@
     border-radius: 0.125rem;
     border: 1px dashed rgba(114, 119, 133, 0.4);
     background-color: rgba(237, 238, 239, 0.4);
+  }
+
+  & .scheduler-legend__swatch-unavailable {
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 0.125rem;
+    background-color: rgba(209, 211, 217, 0.55);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(150, 153, 162, 0.35) 2px,
+      rgba(150, 153, 162, 0.35) 4px
+    );
   }
 
   & .scheduler-legend__label {

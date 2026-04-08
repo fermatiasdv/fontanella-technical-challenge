@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Layout — SideNavBar + TopAppBar
+// Layout — SideNavBar
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -91,22 +91,6 @@
   }
 }
 
-// ── TopAppBar ─────────────────────────────────────────────────────────────────
-
-.topbar {
-  display: flex;
-  align-items: center;
-  padding: 0 2.5rem;
-  margin-left: var(--sidebar-w);
-  position: sticky;
-  top: 0;
-  z-index: var(--z-topbar);
-  width: calc(100% - var(--sidebar-w));
-  height: var(--topbar-h);
-  background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 1px 3px rgba(25, 28, 29, 0.06);
-}
 
 // ── Page wrapper ─────────────────────────────────────────────────────────────
 

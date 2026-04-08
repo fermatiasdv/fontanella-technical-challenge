@@ -164,6 +164,19 @@ async function assertContactCompatibility(
       422,
     );
   }
+
+  // ── InPerson: la ciudad (value) de ambos contactos debe coincidir ────────────
+  if (contact.method_type === 'InPerson') {
+    // clientHasMethod already guarantees this contact exists
+    const clientInPerson = clientContacts.find((c) => c.method_type === 'InPerson')!;
+
+    if (contact.value !== clientInPerson.value) {
+      throw new HttpError(
+        `Para una cita presencial (InPerson), las ubicaciones deben ser las mismas. Ciudad del abogado: "${contact.value}", ciudad del cliente: "${clientInPerson.value}".`,
+        422,
+      );
+    }
+  }
 }
 
 // ─── Service functions ────────────────────────────────────────────────────────
