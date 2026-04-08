@@ -1,5 +1,7 @@
 # Fontanella Project
 
+El módulo de desarrollo de citas permite crear, consultar, actualizar y eliminar citas entre abogados y clientes, aplicando un conjunto de validaciones de negocio antes de confirmar cualquier agendamiento. Al crear o modificar una cita, el sistema verifica que el horario solicitado caiga dentro del horario laboral configurado del abogado y que este no esté de vacaciones, que también respete la disponibilidad del cliente (lunes a viernes, 09:00–18:00 en su zona horaria), que ambas partes compartan un método de contacto compatible (y, en caso de citas presenciales, que se encuentren en la misma ciudad), y que el intervalo no se solape con citas ya existentes; todas las fechas se normalizan a UTC internamente para garantizar consistencia entre zonas horarias.
+
 Este repositorio contiene el desarrollo del proyecto **Fontanella**, dividido en dos aplicaciones principales: un **Backend** (Node.js + Express + Supabase) y un **Client / Frontend** (React + Vite).
 
 ---
