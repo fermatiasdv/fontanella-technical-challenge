@@ -2,7 +2,7 @@
  * AppointmentsPage — ABMC de Appointments (T_APPOINTMENTS)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppointments } from '../hooks/useAppointments';
 import type { AppointmentAPI, CreateAppointmentDto } from '../types/appointment';
 import type { LawyerAPI } from '../types/lawyer';
@@ -11,6 +11,8 @@ import { workingScheduleApi } from '../api/workingSchedule';
 import type { WorkingScheduleAPI } from '../api/workingSchedule';
 import { vacationsApi } from '../api/vacations';
 import type { VacationAPI } from '../api/vacations';
+import { contactApi } from '../api/contact';
+import type { ContactAPI, MethodType } from '../api/contact';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,20 @@ function toLocalInput(iso: string): string {
 function localInputToISO(value: string): string {
   return new Date(value).toISOString();
 }
+
+// ─── Contact method helpers ───────────────────────────────────────────────────
+
+const METHOD_LABEL: Record<MethodType, string> = {
+  InPerson:  'Presencial',
+  VideoCall: 'Videollamada',
+  PhoneCall: 'Teléfono',
+};
+
+const METHOD_ICON: Record<MethodType, string> = {
+  InPerson:  'location_on',
+  VideoCall: 'videocam',
+  PhoneCall: 'phone',
+};
 
 // ─── Availability Panel ───────────────────────────────────────────────────────
 
@@ -191,14 +207,18 @@ function AppointmentFormModal({
     return toLocalInput(d.toISOString());
   };
 
-  const [lawyerId,    setLawyerId]    = useState<number | ''>('');
-  const [clientId,    setClientId]    = useState<number | ''>('');
-  const [subject,     setSubject]     = useState('');
-  const [description, setDescription] = useState('');
-  const [startInput,  setStartInput]  = useState(defaultStart());
-  const [endInput,    setEndInput]    = useState(defaultEnd());
-  const [submitting,  setSubmitting]  = useState(false);
-  const [error,       setError]       = useState<string | null>(null);
+  const [lawyerId,          setLawyerId]          = useState<number | ''>('');
+  const [clientId,          setClientId]          = useState<number | ''>('');
+  const [subject,           setSubject]           = useState('');
+  const [description,       setDescription]       = useState('');
+  const [startInput,        setStartInput]        = useState(defaultStart());
+  const [endInput,          setEndInput]          = useState(defaultEnd());
+  const [submitting,        setSubmitting]        = useState(false);
+  const [error,             setError]             = useState<string | null>(null);
+  const [lawyerContacts,    setLawyerContacts]    = useState<ContactAPI[]>([]);
+  const [clientContacts,    setClientContacts]    = useState<ContactAPI[]>([]);
+  const [contactsLoading,   setContactsLoading]   = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<number | ''>('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -238,11 +258,68 @@ function AppointmentFormModal({
     return () => window.removeEventListener('keydown', h);
   }, [isOpen, onClose]);
 
+  // ── Fetch contacts when lawyer or client changes ───────────────────────────
+  useEffect(() => {
+    if (!isOpen || lawyerId === '' || clientId === '') {
+      setLawyerContacts([]);
+      setClientContacts([]);
+      setSelectedContactId('');
+      return;
+    }
+    const controller = new AbortController();
+    setContactsLoading(true);
+    Promise.all([
+      contactApi.listByLawyer(Number(lawyerId), controller.signal),
+      contactApi.listByClient(Number(clientId), controller.signal),
+    ])
+      .then(([lc, cc]) => {
+        if (controller.signal.aborted) return;
+        setLawyerContacts(lc);
+        setClientContacts(cc);
+
+        // Auto-select: prefer the existing contact (edit mode) if still valid,
+        // otherwise fall back to the first common method.
+        const lawyerByMethod = new Map(lc.map((c) => [c.method_type, c]));
+        const commonLawyerContacts = cc
+          .filter((c) => lawyerByMethod.has(c.method_type))
+          .map((c) => lawyerByMethod.get(c.method_type)!);
+
+        if (commonLawyerContacts.length > 0) {
+          setSelectedContactId((prev) => {
+            const stillValid = commonLawyerContacts.some((c) => c.id_contact === prev);
+            return stillValid ? prev : (commonLawyerContacts[0]?.id_contact ?? '');
+          });
+        } else {
+          setSelectedContactId('');
+        }
+      })
+      .catch(() => {/* non-critical */})
+      .finally(() => { if (!controller.signal.aborted) setContactsLoading(false); });
+
+    return () => controller.abort();
+  }, [isOpen, lawyerId, clientId]);
+
+  // Common contact methods (intersection by method_type, resolved to lawyer's contacts)
+  const commonMethods = useMemo(() => {
+    const lawyerByMethod = new Map(lawyerContacts.map((c) => [c.method_type, c]));
+    return clientContacts
+      .filter((c) => lawyerByMethod.has(c.method_type))
+      .map((c) => ({ methodType: c.method_type as MethodType, lawyerContact: lawyerByMethod.get(c.method_type)! }));
+  }, [lawyerContacts, clientContacts]);
+
   if (!isOpen) return null;
 
   const handleSave = async () => {
     if (!lawyerId || !clientId || !subject.trim()) {
       setError('Lawyer, client and subject are required.');
+      return;
+    }
+    if (commonMethods.length === 0) {
+      setError('No se puede agendar la cita: el abogado y el cliente no tienen métodos de contacto en común.');
+      return;
+    }
+    if (selectedContactId === '') {
+      setError('Seleccioná un método de contacto para la cita.');
       return;
     }
     const start = localInputToISO(startInput);
@@ -257,7 +334,7 @@ function AppointmentFormModal({
       await onSave({
         idLawyer:          Number(lawyerId),
         idClient:          Number(clientId),
-        idSelectedContact: 1,
+        idSelectedContact: Number(selectedContactId),
         subject:           subject.trim(),
         description:       description.trim() || undefined,
         startDatetime:     start,
@@ -428,6 +505,47 @@ function AppointmentFormModal({
               />
             </div>
           </div>
+
+          {/* Contact method selector */}
+          {lawyerId !== '' && clientId !== '' && (
+            <div className="form-field">
+              <label className="form-field__label">
+                <span className="material-symbols-outlined">connect_without_contact</span>
+                Método de contacto
+              </label>
+
+              {contactsLoading ? (
+                <div className="appt-modal__select-skeleton" />
+              ) : commonMethods.length === 0 ? (
+                <div className="error-box">
+                  <span className="material-symbols-outlined">block</span>
+                  El abogado y el cliente no tienen métodos de contacto en común. No es posible agendar una cita entre ellos.
+                </div>
+              ) : (
+                <div className="contact-method-list">
+                  {commonMethods.map(({ methodType, lawyerContact }) => (
+                    <label
+                      key={methodType}
+                      className={`contact-method-option${selectedContactId === lawyerContact.id_contact ? ' contact-method-option--selected' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="contactMethod"
+                        value={lawyerContact.id_contact}
+                        checked={selectedContactId === lawyerContact.id_contact}
+                        onChange={() => setSelectedContactId(lawyerContact.id_contact)}
+                        style={{ display: 'none' }}
+                      />
+                      <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        {METHOD_ICON[methodType]}
+                      </span>
+                      <span>{METHOD_LABEL[methodType]}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Availability info for the selected lawyer */}
           <AvailabilityPanel lawyerId={lawyerId} />
@@ -604,27 +722,6 @@ export default function AppointmentsPage() {
             </div>
           )}
 
-          {/* ── Stats strip ──────────────────────────────────────────── */}
-          <div className="stats-strip stats-strip--3">
-            {[
-              { icon: 'event',     label: 'Total',   value: loading ? '—' : String(appointments.length) },
-              { icon: 'gavel',     label: 'Lawyers', value: lawyersLoading ? '—' : String(lawyers.length) },
-              { icon: 'business',  label: 'Clients', value: clientsLoading ? '—' : String(clients.length) },
-            ].map((s) => (
-              <div key={s.label} className="stat-card">
-                <span
-                  className="material-symbols-outlined stat-card__icon"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  {s.icon}
-                </span>
-                <div>
-                  <p className="stat-card__label">{s.label}</p>
-                  <p className="stat-card__value">{s.value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
 
           {/* ── Table ────────────────────────────────────────────────── */}
           <div className="appt-table">

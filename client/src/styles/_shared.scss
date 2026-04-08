@@ -263,6 +263,7 @@
   gap: 1.25rem;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .modal-footer {
@@ -444,12 +445,64 @@
   animation: pulse 1.5s ease-in-out infinite;
 }
 
+// ── Step indicator ────────────────────────────────────────────────────────────
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.step-dot {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--r-full);
+  font-size: 0.625rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--c-surface-container-high);
+  color: var(--c-on-surface-variant);
+  border: 1.5px solid var(--c-outline-variant);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+
+  &--active {
+    background-color: var(--c-primary);
+    color: var(--c-on-primary);
+    border-color: var(--c-primary);
+  }
+
+  &--done {
+    background-color: var(--c-primary-fixed);
+    color: var(--c-primary);
+    border-color: var(--c-primary-fixed);
+  }
+}
+
+.step-line {
+  width: 1.75rem;
+  height: 2px;
+  background-color: var(--c-outline-variant);
+  border-radius: 1px;
+  transition: background-color 0.2s;
+
+  &--active {
+    background-color: var(--c-primary);
+  }
+}
+
 // ── Generic section card (schedule / vacations) ────────────────────────────────
 
 .section-card {
   border-radius: var(--r-xl);
   border: 1px solid var(--c-surface-container);
   overflow: hidden;
+  transition: border-color 0.15s;
+
+  &--error {
+    border-color: var(--c-error);
+  }
 
   & .section-card__header {
     display: flex;
@@ -473,46 +526,135 @@
   }
 }
 
-// ── Day-of-week pill buttons ───────────────────────────────────────────────────
+// ── Day selector (schedule section) ──────────────────────────────────────────
 
-.day-pills {
+.day-selector {
   display: flex;
-  gap: 0.375rem;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem;
 }
 
-.day-pill {
-  width: 2rem;
-  height: 2rem;
+.day-selector__pill {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem; // 12px entre el dot y el texto del día
+  padding: 0;
   border-radius: var(--r-full);
   font-size: 0.6rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  border: 1px solid var(--c-outline-variant);
+  border: 1.5px solid var(--c-outline-variant);
   background-color: var(--c-surface-container);
   color: var(--c-on-surface-variant);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 
-  &:hover {
+  &:hover:not(.day-selector__pill--selected) {
     border-color: var(--c-primary);
     color: var(--c-primary);
   }
 
-  &--active {
+  // Has an active schedule but is not the selected day → green tint
+  &--loaded {
+    border-color: var(--c-tertiary, #386a20);
+    color: var(--c-tertiary, #386a20);
+    background-color: var(--c-tertiary-container, #c1efab);
+  }
+
+  // Currently selected day → primary blue
+  &--selected {
     background-color: var(--c-primary);
     border-color: var(--c-primary);
     color: var(--c-on-primary);
 
-    &:hover {
-      background-color: var(--c-primary-container);
-      border-color: var(--c-primary-container);
-      color: var(--c-on-primary);
+    // Override dot color when selected
+    .day-selector__dot--active {
+      background-color: var(--c-on-primary);
+    }
+    .day-selector__dot:not(.day-selector__dot--active) {
+      background-color: rgba(255,255,255,0.35);
     }
   }
+}
+
+// Small dot indicator inside each pill
+.day-selector__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: var(--r-full);
+  background-color: var(--c-outline-variant);
+  transition: background-color 0.15s;
+
+  &--active {
+    background-color: var(--c-tertiary, #386a20);
+  }
+}
+
+// ── Day editor panel (shown below the selector) ────────────────────────────────
+
+.day-editor {
+  border-radius: var(--r-lg);
+  background-color: var(--c-surface-container-low);
+  border: 1px solid var(--c-surface-container);
+  overflow: hidden;
+}
+
+.day-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--c-surface-container);
+  background-color: var(--c-surface-container);
+}
+
+.day-editor__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--c-on-surface);
+  letter-spacing: -0.01em;
+}
+
+.day-editor__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--c-on-surface-variant);
+  cursor: pointer;
+  user-select: none;
+
+  input[type='checkbox'] {
+    width: 0.875rem;
+    height: 0.875rem;
+    accent-color: var(--c-primary);
+    cursor: pointer;
+  }
+}
+
+.day-editor__rest {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.875rem;
+  font-size: 0.75rem;
+  color: var(--c-outline);
+
+  .material-symbols-outlined {
+    font-size: 1rem;
+  }
+}
+
+// The time inputs live inside .day-editor using .form-grid-2
+.day-editor .form-grid-2 {
+  padding: 0.875rem;
+  margin: 0;
 }
 
 // ── Vacation rows ─────────────────────────────────────────────────────────────

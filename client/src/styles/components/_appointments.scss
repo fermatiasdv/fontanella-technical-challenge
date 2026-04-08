@@ -317,3 +317,45 @@
     border-radius: var(--r-lg);
   }
 }
+
+
+// ── Contact method selector ───────────────────────────────────────────────────
+
+.contact-method-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.contact-method-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--r-lg);
+  border: 1.5px solid var(--c-outline-variant);
+  background-color: var(--c-surface-container-high);
+  color: var(--c-on-surface-variant);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+  user-select: none;
+
+  & .material-symbols-outlined {
+    font-size: 1rem;
+  }
+
+  &:hover {
+    border-color: var(--c-primary);
+    color: var(--c-primary);
+    background-color: var(--c-primary-container);
+  }
+
+  &--selected {
+    border-color: var(--c-primary);
+    background-color: var(--c-primary-container);
+    color: var(--c-primary);
+    font-weight: 600;
+  }
+}

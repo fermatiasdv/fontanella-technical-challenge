@@ -2,6 +2,8 @@ import * as repository from './appointments.repository';
 import * as workingScheduleRepo from '../working-schedule/workingSchedule.repository';
 import * as vacationsRepo from '../vacations/vacations.repository';
 import * as lawyersRepo from '../lawyers/lawyers.repository';
+import * as clientsRepo from '../clients/clients.repository';
+import * as contactRepo from '../contact/contact.repository';
 import { normalizeToUTC } from '../../shared/services/timezone/timezoneService';
 import { assertValidDate } from '../../shared/utils/dateUtils';
 import { HttpError } from '../../shared/types';
@@ -78,6 +80,92 @@ async function assertWithinWorkingHours(
   }
 }
 
+// ─── Client business-hours validation ────────────────────────────────────────
+
+/**
+ * Checks that the appointment falls within the client's own business hours
+ * (fixed window 09:00–18:00 in the client's timezone, Monday–Friday).
+ *
+ * Clients share the same 9-to-6 constraint as lawyers but don't have an
+ * editable schedule in T_WORKING_SCHEDULE, so we apply the standard window
+ * directly using their stored IANA timezone.
+ */
+async function assertClientWithinBusinessHours(
+  idClient: number,
+  utcStart: string,
+  utcEnd: string,
+) {
+  const client = await clientsRepo.findById(idClient);
+  if (!client) throw new HttpError(`Client not found: ${idClient}`, 404);
+
+  const tz = client.timezone || 'UTC';
+
+  const startInfo = utcToLocalInfo(utcStart, tz);
+  const endInfo   = utcToLocalInfo(utcEnd,   tz);
+
+  const WORK_START = '09:00:00';
+  const WORK_END   = '18:00:00';
+
+  // ── 1. Check weekday ─────────────────────────────────────────────────────────
+  const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  if (!weekdays.includes(startInfo.dayOfWeek)) {
+    throw new HttpError(
+      `El cliente "${client.trade_name}" no tiene disponibilidad los ${startInfo.dayOfWeek} (solo trabaja de lunes a viernes).`,
+      422,
+    );
+  }
+
+  // ── 2. Check start time ──────────────────────────────────────────────────────
+  if (startInfo.timeStr < WORK_START) {
+    throw new HttpError(
+      `El horario de inicio (${startInfo.timeStr} en la zona horaria del cliente "${client.trade_name}" — ${tz}) es anterior al inicio de su jornada laboral (${WORK_START}).`,
+      422,
+    );
+  }
+
+  // ── 3. Check end time ────────────────────────────────────────────────────────
+  if (endInfo.timeStr > WORK_END) {
+    throw new HttpError(
+      `El horario de fin (${endInfo.timeStr} en la zona horaria del cliente "${client.trade_name}" — ${tz}) excede el fin de su jornada laboral (${WORK_END}).`,
+      422,
+    );
+  }
+}
+
+// ─── Contact-method compatibility validation ──────────────────────────────────
+
+async function assertContactCompatibility(
+  idLawyer: number,
+  idClient: number,
+  idSelectedContact: number,
+) {
+  const contact = await contactRepo.findById(idSelectedContact);
+  if (!contact) {
+    throw new HttpError(`Contact not found: ${idSelectedContact}`, 404);
+  }
+
+  // The selected contact must belong to the lawyer
+  if (contact.id_lawyer !== idLawyer) {
+    throw new HttpError(
+      'El contacto seleccionado no pertenece al abogado indicado.',
+      422,
+    );
+  }
+
+  // The client must also have the same method type configured
+  const clientContacts = await contactRepo.findByClient(idClient);
+  const clientHasMethod = clientContacts.some(
+    (c) => c.method_type === contact.method_type,
+  );
+
+  if (!clientHasMethod) {
+    throw new HttpError(
+      `No se puede crear la cita: el abogado y el cliente no comparten ningún método de contacto compatible (método del abogado: ${contact.method_type}).`,
+      422,
+    );
+  }
+}
+
 // ─── Service functions ────────────────────────────────────────────────────────
 
 export async function listAppointments(query: { limit?: number; offset?: number } = {}): Promise<Appointment[]> {
@@ -108,8 +196,14 @@ export async function createAppointment(dto: CreateAppointmentDto): Promise<Appo
     throw new HttpError('endDatetime must be after startDatetime', 400);
   }
 
-  // ── Validate working hours and vacations ─────────────────────────────────────
+  // ── Validate lawyer working hours and vacations ──────────────────────────────
   await assertWithinWorkingHours(idLawyer, utcStart, utcEnd);
+
+  // ── Validate client business hours ───────────────────────────────────────────
+  await assertClientWithinBusinessHours(idClient, utcStart, utcEnd);
+
+  // ── Validate contact-method compatibility ────────────────────────────────────
+  await assertContactCompatibility(idLawyer, idClient, idSelectedContact);
 
   // ── Validate no overlap with existing appointments ───────────────────────────
   const conflicts = await repository.findOverlapping(utcStart, utcEnd);
@@ -155,8 +249,16 @@ export async function updateAppointment(id: number, dto: UpdateAppointmentDto): 
     // Determine which lawyer to validate against (may be changing)
     const lawyerId = dto.idLawyer ?? current.id_lawyer;
 
-    // ── Validate working hours and vacations ─────────────────────────────────
+    // ── Validate lawyer working hours and vacations ──────────────────────────
     await assertWithinWorkingHours(lawyerId, utcStart, utcEnd);
+
+    // ── Validate client business hours ────────────────────────────────────────
+    const clientId = dto.idClient ?? current.id_client;
+    await assertClientWithinBusinessHours(clientId, utcStart, utcEnd);
+
+    // ── Validate contact-method compatibility ─────────────────────────────────
+    const selectedContact = dto.idSelectedContact ?? current.id_selected_contact;
+    await assertContactCompatibility(lawyerId, clientId, selectedContact);
 
     // ── Validate no overlap ──────────────────────────────────────────────────
     const conflicts = await repository.findOverlapping(utcStart, utcEnd, id);
