@@ -1,0 +1,66 @@
+import { useState } from 'react';
+import { useClients } from '@/features/clients/hooks/useClients';
+import { createClientWithContacts } from '@/features/clients/services/clientService';
+import { ClientsPageHeader } from '@/features/clients/components/ClientsPageHeader';
+import { ClientSearchBar }   from '@/features/clients/components/ClientSearchBar';
+import { ClientTable }       from '@/features/clients/components/ClientTable';
+import { AddClientModal }    from '@/features/clients/components/AddClientModal';
+import { ErrorBanner }       from '@/shared/components/ErrorBanner';
+import { TableSkeleton }     from '@/shared/components/TableSkeleton';
+import type { ClientAPI }    from '@/features/clients/types/client.types';
+
+export function ClientManagement() {
+  const {
+    clients, totalClients, loading, error,
+    currentPage, totalPages, setCurrentPage,
+    search, setSearch, refetch, deleteClient,
+  } = useClients();
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const handleCreate: React.ComponentProps<typeof AddClientModal>['onSubmit'] = async (dto, contacts) => {
+    await createClientWithContacts(dto, contacts);
+    refetch();
+  };
+
+  const handleDelete = async (client: ClientAPI) => {
+    if (!confirm(`Delete ${client.trade_name}? This action cannot be undone.`)) return;
+    try {
+      await deleteClient(client.id_client);
+    } catch (err) {
+      alert(`Error deleting client: ${(err as Error).message}`);
+    }
+  };
+
+  return (
+    <>
+      <main className="page">
+        <ClientsPageHeader onAddClient={() => setIsAddModalOpen(true)} />
+        <ClientSearchBar value={search} onChange={setSearch} />
+
+        {error ? (
+          <ErrorBanner message={error} onRetry={refetch} />
+        ) : loading ? (
+          <TableSkeleton variant="clients" />
+        ) : (
+          <ClientTable
+            clients={clients}
+            totalClients={totalClients}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={4}
+            onPageChange={setCurrentPage}
+            onEditClient={(c) => console.log('TODO: open Edit modal for', c.id_client)}
+            onDeleteClient={handleDelete}
+          />
+        )}
+      </main>
+
+      <AddClientModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSubmit={handleCreate}
+      />
+    </>
+  );
+}
