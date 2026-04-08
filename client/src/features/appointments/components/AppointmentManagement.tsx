@@ -4,6 +4,7 @@ import { AppointmentRow }       from '@/features/appointments/components/Appoint
 import { AppointmentFormModal } from '@/features/appointments/components/AppointmentFormModal';
 import { useLawyerList }        from '@/shared/hooks/useLawyerList';
 import { useClientList }        from '@/shared/hooks/useClientList';
+import { swal }                 from '@/shared/utils/swal';
 import type { AppointmentAPI }  from '@/features/appointments/types/appointment.types';
 
 export function AppointmentManagement() {
@@ -29,8 +30,10 @@ export function AppointmentManagement() {
   const handleSave = async (dto: Parameters<typeof create>[0]) => {
     if (editAppointment) {
       await update(editAppointment.id_appointment, dto);
+      swal.success('Turno actualizado correctamente');
     } else {
       await create(dto);
+      swal.success('Turno creado correctamente');
     }
   };
 

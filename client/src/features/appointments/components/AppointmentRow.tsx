@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { AppointmentAPI } from '@/features/appointments/types/appointment.types';
 import { formatDatetime } from '@/features/appointments/utils/datetimeUtils';
+import { swal } from '@/shared/utils/swal';
 
 export interface AppointmentRowProps {
   appointment: AppointmentAPI;
@@ -14,10 +15,15 @@ export function AppointmentRow({ appointment, lawyerName, clientName, onEdit, on
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (!confirm(`Delete appointment "${appointment.subject}"?`)) return;
+    if (!await swal.confirmDelete(`Turno: "${appointment.subject}"`)) return;
     setDeleting(true);
-    try { await onDelete(appointment.id_appointment); }
-    finally { setDeleting(false); }
+    try {
+      await onDelete(appointment.id_appointment);
+    } catch (err) {
+      swal.errorToast((err as Error).message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (

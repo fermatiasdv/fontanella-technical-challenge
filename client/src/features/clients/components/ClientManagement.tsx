@@ -7,6 +7,7 @@ import { ClientTable }       from '@/features/clients/components/ClientTable';
 import { AddClientModal }    from '@/features/clients/components/AddClientModal';
 import { ErrorBanner }       from '@/shared/components/ErrorBanner';
 import { TableSkeleton }     from '@/shared/components/TableSkeleton';
+import { swal }              from '@/shared/utils/swal';
 import type { ClientAPI }    from '@/features/clients/types/client.types';
 
 export function ClientManagement() {
@@ -21,14 +22,16 @@ export function ClientManagement() {
   const handleCreate: React.ComponentProps<typeof AddClientModal>['onSubmit'] = async (dto, contacts) => {
     await createClientWithContacts(dto, contacts);
     refetch();
+    swal.success('Cliente creado correctamente');
   };
 
   const handleDelete = async (client: ClientAPI) => {
-    if (!confirm(`Delete ${client.trade_name}? This action cannot be undone.`)) return;
+    if (!await swal.confirmDelete(client.trade_name)) return;
     try {
       await deleteClient(client.id_client);
+      swal.success('Cliente eliminado');
     } catch (err) {
-      alert(`Error deleting client: ${(err as Error).message}`);
+      swal.errorDialog('Error al eliminar', (err as Error).message);
     }
   };
 

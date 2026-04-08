@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
+import { swal }               from '@/shared/utils/swal';
 import { useScheduler }       from '@/features/scheduler/hooks/useScheduler';
 import { useAppointments }    from '@/features/appointments/hooks/useAppointments';
 import { WeekNavigator }      from '@/features/scheduler/components/WeekNavigator';
@@ -94,6 +95,7 @@ export function SchedulerManagement() {
   const handleApptSave = useCallback(async (dto: CreateAppointmentDto) => {
     if (apptEditTarget) {
       await updateAppointment(apptEditTarget.id_appointment, dto);
+      swal.success('Turno actualizado correctamente');
     }
   }, [apptEditTarget, updateAppointment]);
 
@@ -135,8 +137,9 @@ export function SchedulerManagement() {
   const handleSlotSave = useCallback(
     async (dayOfWeek: string, startTime: string, endTime: string) => {
       await upsertSlot({ dayOfWeek, startTime, endTime });
+      swal.success(editSlot ? 'Horario actualizado' : 'Horario agregado');
     },
-    [upsertSlot],
+    [upsertSlot, editSlot],
   );
 
   // ── Derived: slot-by-day map ───────────────────────────────────────────────

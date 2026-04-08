@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { timeToMin, formatDisplayTime } from '@/features/scheduler/utils/calendarLayout';
 import { DAYS_EN, DAYS_SHORT } from '@/features/scheduler/constants/scheduler.constants';
+import { swal } from '@/shared/utils/swal';
 import type { WorkingScheduleAPI } from '@/services/workingSchedule.service';
 
 export interface SlotDrawerProps {
@@ -11,18 +12,17 @@ export interface SlotDrawerProps {
 }
 
 export function SlotDrawer({ slot, onClose, onEdit, onDelete }: SlotDrawerProps) {
-  const [deleting,  setDeleting]  = useState(false);
-  const [deleteErr, setDeleteErr] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
     if (!slot) return;
+    if (!await swal.confirmDelete(`Horario del ${slot.day_of_week}`)) return;
     setDeleting(true);
-    setDeleteErr(null);
     try {
       await onDelete(slot.id_working_schedule);
       onClose();
     } catch (err) {
-      setDeleteErr((err as Error).message);
+      swal.errorToast((err as Error).message);
       setDeleting(false);
     }
   };
@@ -84,12 +84,6 @@ export function SlotDrawer({ slot, onClose, onEdit, onDelete }: SlotDrawerProps)
             <p className="slot-drawer__field-mono">{slot.id_working_schedule}</p>
           </div>
 
-          {deleteErr && (
-            <div className="error-box">
-              <span className="material-symbols-outlined">error</span>
-              {deleteErr}
-            </div>
-          )}
         </div>
 
         {/* Footer */}

@@ -7,6 +7,7 @@ import { CreateLawyerModal } from '@/features/lawyers/components/CreateLawyerMod
 import { ErrorBanner } from '@/shared/components/ErrorBanner';
 import { TableSkeleton } from '@/shared/components/TableSkeleton';
 import { Pagination } from '@/shared/components/Pagination';
+import { swal } from '@/shared/utils/swal';
 import type { LawyerAPI } from '@/features/lawyers/types/lawyer.types';
 
 export function LawyerManagement() {
@@ -25,6 +26,7 @@ export function LawyerManagement() {
   ) => {
     await createLawyerWithDetails(dto, contacts, schedule, vacations);
     refetch();
+    swal.success('Abogado creado correctamente');
   };
 
   const handleEditFull: React.ComponentProps<typeof CreateLawyerModal>['onSubmit'] = async (
@@ -33,15 +35,17 @@ export function LawyerManagement() {
     if (!editingLawyer) return;
     await updateLawyerWithDetails(editingLawyer.id_lawyer, dto, contacts, schedule, vacations);
     refetch();
+    swal.success('Abogado actualizado correctamente');
   };
 
   const handleDelete = async (lawyer: LawyerAPI) => {
-    if (!confirm(`Delete ${lawyer.full_name}? This action cannot be undone.`)) return;
+    if (!await swal.confirmDelete(lawyer.full_name)) return;
     try {
       await deleteLawyer(lawyer.id_lawyer);
       if (lawyer.id_lawyer === activeLawyerId) setActiveLawyerId(undefined);
+      swal.success('Abogado eliminado');
     } catch (err) {
-      alert(`Error deleting lawyer: ${(err as Error).message}`);
+      swal.errorDialog('Error al eliminar', (err as Error).message);
     }
   };
 
