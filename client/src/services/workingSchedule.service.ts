@@ -18,10 +18,10 @@ const BASE = '/api/v1/working-schedule';
 
 export const workingScheduleService = {
   getByLawyer: (lawyerId: number, signal?: AbortSignal): Promise<WorkingScheduleAPI[]> =>
-    apiFetch<WorkingScheduleAPI[]>(`${BASE}/lawyer/${lawyerId}`, { signal }),
+    apiFetch<WorkingScheduleAPI[]>(`${BASE}/${lawyerId}`, { signal }),
 
   upsertSlots: (lawyerId: number, slots: WorkingScheduleSlotDto[]): Promise<WorkingScheduleAPI[]> =>
-    apiFetch<WorkingScheduleAPI[]>(`${BASE}/lawyer/${lawyerId}`, {
+    apiFetch<WorkingScheduleAPI[]>(`${BASE}/${lawyerId}`, {
       method: 'PUT',
       body: JSON.stringify({ slots }),
     }),

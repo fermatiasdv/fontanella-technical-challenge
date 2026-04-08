@@ -39,7 +39,7 @@ export function AppointmentFormModal({
   const [error,       setError]       = useState<string | null>(null);
 
   const { commonMethods, contactsLoading, selectedContactId, setSelectedContactId } =
-    useAppointmentForm({ isOpen, lawyerId, clientId });
+    useAppointmentForm({ isOpen, lawyerId, clientId, initialContactId: editAppointment?.id_selected_contact ?? '' });
 
   useEffect(() => {
     if (!isOpen) return;

@@ -16,10 +16,10 @@ const BASE = '/api/v1/vacations';
 
 export const vacationsService = {
   getByLawyer: (lawyerId: number, signal?: AbortSignal): Promise<VacationAPI[]> =>
-    apiFetch<VacationAPI[]>(`${BASE}/lawyer/${lawyerId}`, { signal }),
+    apiFetch<VacationAPI[]>(`${BASE}/${lawyerId}`, { signal }),
 
   add: (lawyerId: number, dto: VacationDto): Promise<VacationAPI> =>
-    apiFetch<VacationAPI>(`${BASE}/lawyer/${lawyerId}`, {
+    apiFetch<VacationAPI>(`${BASE}/${lawyerId}`, {
       method: 'POST',
       body: JSON.stringify(dto),
     }),
