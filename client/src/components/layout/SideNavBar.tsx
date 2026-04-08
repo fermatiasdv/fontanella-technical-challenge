@@ -7,10 +7,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { icon: 'gavel',          label: 'Practitioners', pageKey: 'lawyers'      },
-  { icon: 'event',          label: 'Appointments',  pageKey: 'appointments' },
-  { icon: 'calendar_month', label: 'Scheduler',     pageKey: 'scheduler'    },
+  { icon: 'gavel',          label: 'Lawyers', pageKey: 'lawyers'      },
   { icon: 'group',          label: 'Clients',       pageKey: 'clients'      },
+  { icon: 'calendar_month', label: 'Scheduler',     pageKey: 'scheduler'    },
+  { icon: 'event',          label: 'Appointments',  pageKey: 'appointments' },
 ];
 
 interface SideNavBarProps {

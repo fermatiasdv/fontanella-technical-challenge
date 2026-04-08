@@ -92,20 +92,52 @@ export default function LawyerManagementHome() {
     }
   };
 
-  const handleEditLawyer = async (dto: CreateLawyerDto, contacts: ContactMethodInputI[]) => {
+  const handleEditLawyer = async (
+    dto:       CreateLawyerDto,
+    contacts:  ContactMethodInputI[],
+    schedule:  ScheduleSlotInput[],
+    vacations: VacationInput[],
+  ) => {
     if (!editingLawyer) return;
     const id = editingLawyer.id_lawyer;
+
+    // 1. Update basic lawyer data
     await updateLawyer(id, dto);
-    const existing = await contactApi.listByLawyer(id);
-    await Promise.all(existing.map((c) => contactApi.remove(c.id_contact)));
+
+    // 2. Update contacts in-place to avoid FK violations with existing appointments.
+    //    Strategy: match by method_type → update existing | create new | try-delete removed.
+    const existingContacts = await contactApi.listByLawyer(id);
+
+    // Update or create each enabled contact
     await Promise.all(
-      contacts.map((c, idx) =>
-        contactApi.create({
-          idLawyer:   id,
-          methodType: c.method_type,
-          value:      c.value,
-          isDefault:  idx === 0,
-        }),
+      contacts.map((c, idx) => {
+        const match = existingContacts.find((e) => e.method_type === c.method_type);
+        if (match) {
+          return contactApi.update(match.id_contact, { value: c.value, isDefault: idx === 0 });
+        }
+        return contactApi.create({ idLawyer: id, methodType: c.method_type, value: c.value, isDefault: idx === 0 });
+      }),
+    );
+
+    // Remove contacts that were disabled — silently ignore FK errors
+    // (a contact referenced by an existing appointment cannot be deleted)
+    const newMethodTypes = new Set(contacts.map((c) => c.method_type));
+    const toDelete = existingContacts.filter((e) => !newMethodTypes.has(e.method_type));
+    await Promise.allSettled(toDelete.map((c) => contactApi.remove(c.id_contact)));
+
+    // 3. Replace working schedule (delete all → upsert active days)
+    const existingSlots = await workingScheduleApi.getByLawyer(id);
+    await Promise.all(existingSlots.map((s) => workingScheduleApi.deleteSlot(s.id_working_schedule)));
+    if (schedule.length > 0) {
+      await workingScheduleApi.upsertSlots(id, schedule);
+    }
+
+    // 4. Replace vacations (delete all → re-create)
+    const existingVacs = await vacationsApi.getByLawyer(id);
+    await Promise.all(existingVacs.map((v) => vacationsApi.removeVacation(v.id_vacation)));
+    await Promise.all(
+      vacations.map((v) =>
+        vacationsApi.addVacation(id, { startDate: v.startDate, endDate: v.endDate }),
       ),
     );
   };
@@ -125,33 +157,27 @@ export default function LawyerManagementHome() {
       <main className="page">
         <PageHeader onAddLawyer={() => setIsCreateModalOpen(true)} />
 
-        <div className="page-grid">
-          {/* ── Main area ─────────────────────────────────────────── */}
-          <div className="page-grid__main">
-            {error ? (
-              <ErrorBanner message={error} onRetry={refetch} />
-            ) : loading ? (
-              <TableSkeleton />
-            ) : (
-              <LawyerTable
-                lawyers={lawyers}
-                activeLawyerId={activeLawyerId ?? lawyers[0]?.id_lawyer}
-                onSelectLawyer={(l) => setActiveLawyerId(l.id_lawyer)}
-                onEditLawyer={(l) => setEditingLawyer(l)}
-                onDeleteLawyer={handleDeleteLawyer}
-              />
-            )}
+        {error ? (
+          <ErrorBanner message={error} onRetry={refetch} />
+        ) : loading ? (
+          <TableSkeleton />
+        ) : (
+          <LawyerTable
+            lawyers={lawyers}
+            activeLawyerId={activeLawyerId ?? lawyers[0]?.id_lawyer}
+            onSelectLawyer={(l) => setActiveLawyerId(l.id_lawyer)}
+            onEditLawyer={(l) => setEditingLawyer(l)}
+            onDeleteLawyer={handleDeleteLawyer}
+          />
+        )}
 
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={totalLawyers}
-              itemsPerPage={4}
-              onPageChange={setCurrentPage}
-            />
-          </div>
-          
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalLawyers}
+          itemsPerPage={4}
+          onPageChange={setCurrentPage}
+        />
       </main>
 
       <CreateLawyerModal

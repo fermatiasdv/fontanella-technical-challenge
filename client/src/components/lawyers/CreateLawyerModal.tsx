@@ -1,9 +1,10 @@
 /**
- * CreateLawyerModal — create (2-step) & edit (1-step) mode
+ * CreateLawyerModal — create (2-step) & edit (2-step) mode
  *
  * CREATE — Step 1: datos básicos + métodos de contacto
  *        — Step 2: horario laboral por día (requerido) + vacaciones (opcional)
- * EDIT   — paso único: datos básicos + métodos de contacto
+ * EDIT   — Step 1: datos básicos + métodos de contacto  (precargados)
+ *        — Step 2: horario laboral + vacaciones          (precargados)
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -16,6 +17,8 @@ import type {
 } from '../../types/lawyer';
 import { contactApi } from '../../api/contact';
 import type { MethodType } from '../../api/contact';
+import { workingScheduleApi } from '../../api/workingSchedule';
+import { vacationsApi } from '../../api/vacations';
 import ContactMethodsSection, {
   EMPTY_CONTACTS,
   getActiveContacts,
@@ -407,17 +410,18 @@ export default function CreateLawyerModal({
 }: CreateLawyerModalProps) {
   const isEditMode = Boolean(initialLawyer);
 
-  const [step, setStep]                     = useState<1 | 2>(1);
-  const [form, setForm]                     = useState<FormState>(EMPTY_FORM);
-  const [contacts, setContacts]             = useState<ContactsState>(EMPTY_CONTACTS);
-  const [errors, setErrors]                 = useState<FormErrors>({});
-  const [scheduleError, setScheduleError]   = useState<string | undefined>(undefined);
-  const [submitting, setSubmitting]         = useState(false);
-  const [submitError, setSubmitError]       = useState<string | null>(null);
+  const [step, setStep]                       = useState<1 | 2>(1);
+  const [form, setForm]                       = useState<FormState>(EMPTY_FORM);
+  const [contacts, setContacts]               = useState<ContactsState>(EMPTY_CONTACTS);
+  const [errors, setErrors]                   = useState<FormErrors>({});
+  const [scheduleError, setScheduleError]     = useState<string | undefined>(undefined);
+  const [submitting, setSubmitting]           = useState(false);
+  const [submitError, setSubmitError]         = useState<string | null>(null);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
 
-  const [schedule, setSchedule]           = useState<ScheduleState>(EMPTY_SCHEDULE);
-  const [vacationRows, setVacationRows]   = useState<VacationRow[]>([]);
+  const [schedule, setSchedule]         = useState<ScheduleState>(EMPTY_SCHEDULE);
+  const [vacationRows, setVacationRows] = useState<VacationRow[]>([]);
 
   // ── Reset on open ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -428,25 +432,63 @@ export default function CreateLawyerModal({
     setSubmitError(null);
 
     if (initialLawyer) {
+      // ── Basic fields ──────────────────────────────────────────────────────
       setForm({
         full_name:   initialLawyer.full_name,
         national_id: initialLawyer.national_id,
         location:    initialLawyer.location,
         timezone:    initialLawyer.timezone,
       });
+
+      // ── Contacts ──────────────────────────────────────────────────────────
       setContacts(EMPTY_CONTACTS);
       setLoadingContacts(true);
       contactApi
         .listByLawyer(initialLawyer.id_lawyer)
         .then((existing) => {
           const state = { ...EMPTY_CONTACTS };
-          existing.forEach((c) => {
-            state[c.method_type] = { enabled: true, value: c.value };
-          });
+          existing.forEach((c) => { state[c.method_type] = { enabled: true, value: c.value }; });
           setContacts(state);
         })
         .catch(() => {})
         .finally(() => setLoadingContacts(false));
+
+      // ── Working schedule ──────────────────────────────────────────────────
+      setSchedule(EMPTY_SCHEDULE);
+      setLoadingSchedule(true);
+      workingScheduleApi
+        .getByLawyer(initialLawyer.id_lawyer)
+        .then((slots) => {
+          const s: ScheduleState = DAYS.reduce<ScheduleState>((acc, { key }) => {
+            acc[key] = { active: false, startTime: '09:00', endTime: '18:00' };
+            return acc;
+          }, {});
+          slots.forEach((slot) => {
+            s[slot.day_of_week] = {
+              active:    true,
+              startTime: slot.start_time.slice(0, 5), // "HH:mm:ss" → "HH:mm"
+              endTime:   slot.end_time.slice(0, 5),
+            };
+          });
+          setSchedule(s);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingSchedule(false));
+
+      // ── Vacations ─────────────────────────────────────────────────────────
+      setVacationRows([]);
+      vacationsApi
+        .getByLawyer(initialLawyer.id_lawyer)
+        .then((vacs) => {
+          setVacationRows(
+            vacs.map((v) => ({
+              id:        `vac-${v.id_vacation}`,
+              startDate: v.start_date,
+              endDate:   v.end_date,
+            })),
+          );
+        })
+        .catch(() => {});
     } else {
       setForm(EMPTY_FORM);
       setContacts(EMPTY_CONTACTS);
@@ -510,9 +552,8 @@ export default function CreateLawyerModal({
   const hasValidContact  = activeContacts.length > 0;
   const hasValidSchedule = scheduleIsValid(schedule);
 
-  const canGoNext   = isStep1Ready(form, hasValidContact) && !loadingContacts;
-  const canSubmit   = hasValidSchedule && !submitting;
-  const canSaveEdit = hasValidContact && !submitting && !loadingContacts;
+  const canGoNext = isStep1Ready(form, hasValidContact) && !loadingContacts && !loadingSchedule;
+  const canSubmit = hasValidSchedule && !submitting;
 
   const initials = form.full_name
     .trim().split(/\s+/).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
@@ -530,37 +571,24 @@ export default function CreateLawyerModal({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (isEditMode) {
-      const validation = validate(form);
-      if (Object.keys(validation).length > 0) { setErrors(validation); return; }
-      if (!hasValidContact) return;
-    } else {
-      if (!hasValidSchedule) {
-        setScheduleError('Activá al menos un día y completá los horarios de entrada y salida.');
-        return;
-      }
+    if (!hasValidSchedule) {
+      setScheduleError('Activá al menos un día y completá los horarios de entrada y salida.');
+      return;
     }
 
     // Build schedule slots — only active days with valid times
-    const scheduleSlots: ScheduleSlotInput[] = [];
-    if (!isEditMode) {
-      Object.entries(schedule).forEach(([day, d]) => {
-        if (d.active && d.startTime && d.endTime) {
-          scheduleSlots.push({
-            dayOfWeek: day,
-            startTime: `${d.startTime}:00`,
-            endTime:   `${d.endTime}:00`,
-          });
-        }
-      });
-    }
+    const scheduleSlots: ScheduleSlotInput[] = Object.entries(schedule)
+      .filter(([, d]) => d.active && d.startTime && d.endTime)
+      .map(([day, d]) => ({
+        dayOfWeek: day,
+        startTime: `${d.startTime}:00`,
+        endTime:   `${d.endTime}:00`,
+      }));
 
     // Build vacation inputs — only complete rows
-    const vacationInputs: VacationInput[] = isEditMode
-      ? []
-      : vacationRows
-          .filter((r) => r.startDate && r.endDate)
-          .map((r) => ({ startDate: r.startDate, endDate: r.endDate }));
+    const vacationInputs: VacationInput[] = vacationRows
+      .filter((r) => r.startDate && r.endDate)
+      .map((r) => ({ startDate: r.startDate, endDate: r.endDate }));
 
     setSubmitting(true);
     setSubmitError(null);
@@ -586,7 +614,7 @@ export default function CreateLawyerModal({
 
   if (!isOpen) return null;
 
-  const currentStep = isEditMode ? null : step;
+  const currentStep = step;
 
   return (
     <div
@@ -625,7 +653,7 @@ export default function CreateLawyerModal({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.625rem' }}>
-            {currentStep && <StepIndicator current={currentStep} />}
+            <StepIndicator current={currentStep} />
             <button onClick={onClose} className="btn-icon" aria-label="Close">
               <span className="material-symbols-outlined">close</span>
             </button>
@@ -640,8 +668,8 @@ export default function CreateLawyerModal({
         >
           <div className="modal-body">
 
-            {/* ── Step 1 / Edit ─────────────────────────────────────────────── */}
-            {(currentStep === 1 || isEditMode) && (
+            {/* ── Step 1 ────────────────────────────────────────────────────── */}
+            {currentStep === 1 && (
               <>
                 <Field label="Full Name" icon="badge" error={errors.full_name}>
                   <input
@@ -752,7 +780,7 @@ export default function CreateLawyerModal({
                 </button>
               ) : (
                 <button type="button" onClick={onClose} className="btn-secondary">
-                  Cancel
+                  Cancelar
                 </button>
               )}
 
@@ -763,23 +791,19 @@ export default function CreateLawyerModal({
                 </button>
               )}
 
-              {(currentStep === 2 || isEditMode) && (
-                <button
-                  type="submit"
-                  disabled={currentStep === 2 ? !canSubmit : !canSaveEdit}
-                  className="btn-primary"
-                >
+              {currentStep === 2 && (
+                <button type="submit" disabled={!canSubmit} className="btn-primary">
                   {submitting ? (
                     <>
                       <span className="material-symbols-outlined anim-spin">progress_activity</span>
-                      Saving…
+                      Guardando…
                     </>
                   ) : (
                     <>
                       <span className="material-symbols-outlined">
                         {isEditMode ? 'save' : 'person_add'}
                       </span>
-                      {isEditMode ? 'Save Changes' : 'Add Practitioner'}
+                      {isEditMode ? 'Guardar cambios' : 'Add Practitioner'}
                     </>
                   )}
                 </button>
